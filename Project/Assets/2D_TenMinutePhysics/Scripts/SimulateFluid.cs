@@ -7,17 +7,22 @@ using UnityEngine.UIElements;
 public class SimulateFluid : MonoBehaviour
 {
     GameObject[] visualGrid;
-    //prefab gameobject
+
+    [Tooltip("Base element of grid (cell)")]
     public GameObject square;
 
+    [Tooltip("Obstacle")]
+    public GameObject obstacle;
+
+
     private float gravity = -9.81f;
-	private float dt = 1.0f / 120.0f;
+	private float dt = 1.0f / 60.0f;
 	private int numIters = 100;
 	private int frameNr = 0;
 	private float overRelaxation = 1.9f;
 	private float obstacleX = 0.0f;
 	private float obstacleY = 0.0f;
-	private float obstacleRadius = 0.15f;
+	private float obstacleRadius = 0.10f;
 	private bool paused = false;
 	private int sceneNr = 0;
 	private bool showObstacle = false;
@@ -38,12 +43,10 @@ public class SimulateFluid : MonoBehaviour
 		int numX = (int) Math.Floor(1 / h);
 		int numY = (int) Math.Floor(1 / h);
 
-        Debug.Log(numX);
 
 
 		Fluid f = fluid = new Fluid(density, numX, numY, h);
 
-        Debug.Log(f.numX);
 
 
         int n = f.numY;
@@ -72,8 +75,8 @@ public class SimulateFluid : MonoBehaviour
         for (var j = minJ; j < maxJ; j++)
             f.m[j] = 0.0f;
 
-        //setObstacle(0.4, 0.5, true)
-
+        setObstacle(0.4f, 0.5f, true);
+        DrawObstacle(0.4f, 0.5f);
 
         gravity = 0.0f;
         //scene.showPressure = false;
@@ -81,12 +84,11 @@ public class SimulateFluid : MonoBehaviour
         //scene.showStreamlines = false;
         //scene.showVelocities = false;
 
-        visualGrid = new GameObject[100*100];
+        visualGrid = new GameObject[f.numCells];
 
         for (int i = 0; i < f.numX; i++) {
             for (int j = 0; j < f.numY; j++) {
 
-                //Debug.Log("i: " + i + "; j: " + j);
 
                 visualGrid[i * f.numY + j] = Instantiate(square, globalPos(i, j), Quaternion.identity);
                 visualGrid[i * f.numY + j].GetComponent<Renderer>().material.color = new Color(100, 100, 100);
@@ -108,19 +110,18 @@ public class SimulateFluid : MonoBehaviour
     }
 
     private void draw() {
-        float cScale = 1; // canvas.height / simHeight = cell Scale
-        float cellScale = 1.1f; //this part of the code is wierd
+        //float cScale = 1; // canvas.height / simHeight = cell Scale
+        //float cellScale = 1.1f; //this part of the code is wierd
 
-        float h = fluid.h;
+        //float h = fluid.h;
 
         for (int i = 0; i < fluid.numX; i++)
             for (int j = 0; j < fluid.numY; j++) {
                 float color = fluid.m[i * fluid.numY + j]; //color in range [0,1]
 
-                //Debug.Log(color);
 
-                int x = (int) Math.Floor(i * h);
-                int y = (int) Math.Floor((j + 1) * h);
+                //int x = (int) Math.Floor(i * h);
+                //int y = (int) Math.Floor((j + 1) * h);
 
 
                 visualGrid[i * fluid.numY + j].GetComponent<Renderer>().material.SetColor("_Color", new Color(color, color, color));
@@ -131,13 +132,72 @@ public class SimulateFluid : MonoBehaviour
 
     }
 
+    private void DrawObstacle(float x, float y) {
 
-    private Vector3 globalPos(int i, int j) {
+        //find center in cell coordinates
+        float centerX = x / fluid.h - 0.5f; 
+        float centerY = y / fluid.h - 0.5f;
+
+        //Vector3 center = globalPos(centerX, centerY);
+        obstacle = Instantiate(obstacle, globalPos(centerX, centerY), Quaternion.identity);
+        obstacle.transform.localScale = Vector3.one / 0.5f;
+
+    }
+
+
+    private void setObstacle(float x, float y, bool reset) {
+
+        float vx = 0.0f;
+        float vy = 0.0f;
+
+        if (!reset) {
+            vx = (x - this.obstacleX) / this.dt;
+            vy = (y - this.obstacleY) / this.dt;
+        }
+
+        this.obstacleX = x;
+        this.obstacleY = y;
+        float r = this.obstacleRadius;
+        Fluid f = this.fluid;
+        int n = f.numY;
+        float cd = (float) Math.Sqrt(2) * f.h;
+
+        for (var i = 1; i < f.numX - 2; i++) {
+            for (var j = 1; j < f.numY - 2; j++) {
+
+                f.s[i * n + j] = 1; //make every cell fluid
+
+                float dx = (i + 0.5f) * f.h - x;
+                float dy = (j + 0.5f) * f.h - y;
+
+                if (dx * dx + dy * dy < r * r) {   // Is inside circle
+                    f.s[i * n + j] = 0; //make solid
+
+                    if (this.sceneNr == 2)      //not used, it was made for a paint simulation
+                        f.m[i * n + j] = 0.5f + 0.5f * (float)Math.Sin(0.1f * this.frameNr);
+                    else
+                        f.m[i * n + j] = 1.0f;
+
+
+                    f.u[i * n + j] = vx;
+                    f.u[(i + 1) * n + j] = vx;
+                    f.v[i * n + j] = vy;
+                    f.v[i * n + j + 1] = vy;
+                }
+            }
+        }
+
+        this.showObstacle = true;
+    }
+
+
+
+    private Vector3 globalPos(float i, float j) {
         float vertExtent = Camera.main.orthographicSize;
         float horzExtent = vertExtent * Screen.width / Screen.height;
 
         float side = Math.Min(vertExtent, horzExtent);
-        float squareSize = side * 2 / 100;
+        float squareSize = side * 2 / fluid.numY;
 
         square.transform.localScale = new Vector3(squareSize, squareSize, squareSize);
 
@@ -146,4 +206,6 @@ public class SimulateFluid : MonoBehaviour
 
         return new Vector3(x, y, 0);
     }
+
+    
 }

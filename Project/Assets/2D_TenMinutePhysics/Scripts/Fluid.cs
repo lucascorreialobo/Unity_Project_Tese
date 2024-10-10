@@ -15,7 +15,7 @@ public class Fluid {
     public float[] v;      //vertical velocity
     public float[] newU;   
     public float[] newV;
-    public float[] p;       //pressure?
+    public float[] p;       //pressure
     public int[] s;         //type of cell: 0: walls | 1: fluid
     public float[] m;       //contains smoke information
     public float[] newM;
@@ -59,8 +59,8 @@ public class Fluid {
     }
 
     private void solveIncompressibility(int numIters, float dt) {
-        var n = this.numY;
-        var cp = this.density * this.h / dt;
+        int n = this.numY;
+        float cp = this.density * this.h / dt;
 
         for (var iter = 0; iter < numIters; iter++) {
 
@@ -70,19 +70,21 @@ public class Fluid {
                     if (this.s[i * n + j] == 0.0)
                         continue;
 
-                    var s = this.s[i * n + j];
-                    var sx0 = this.s[(i - 1) * n + j];
-                    var sx1 = this.s[(i + 1) * n + j];
-                    var sy0 = this.s[i * n + j - 1];
-                    var sy1 = this.s[i * n + j + 1];
+                    //get the 4 orthogonaly connected cells
+                    int s = this.s[i * n + j];
+                    int sx0 = this.s[(i - 1) * n + j];
+                    int sx1 = this.s[(i + 1) * n + j];
+                    int sy0 = this.s[i * n + j - 1];
+                    int sy1 = this.s[i * n + j + 1];
                     s = sx0 + sx1 + sy0 + sy1;
-                    if (s == 0.0)
+                    if (s == 0.0) //if all orthogonaly connected cells are solid cell doesn't change
                         continue;
 
-                    var div = this.u[(i + 1) * n + j] - this.u[i * n + j] +
-                        this.v[i * n + j + 1] - this.v[i * n + j];
+                    //calculate total outflow
+                    float div = this.u[(i + 1) * n + j] - this.u[i * n + j] +
+                        this.v[i * n + j + 1] - this.v[i * n + j]; 
 
-                    var p = -div / s;
+                    float p = -div / s;
                     p *= this.overRelaxation;
                     this.p[i * n + j] += cp * p;
 
@@ -95,8 +97,9 @@ public class Fluid {
         }
     }
 
+    //take care of border cells
     private void extrapolate() {
-        var n = this.numY;
+        int n = this.numY;
         for (var i = 0; i < this.numX; i++) {
             this.u[i * n + 0] = this.u[i * n + 1];
             this.u[i * n + this.numY - 1] = this.u[i * n + this.numY - 2];
@@ -108,18 +111,18 @@ public class Fluid {
     }
 
     private float sampleField(float x, float y, FIELD field) {  //get vector (velocityX || velocityY || smoke_density) on point x,y 
-        var n = this.numY;
-        var h = this.h;
-        var h1 = 1.0f / h;
-        var h2 = 0.5f * h;
+        int n = this.numY;
+        float h = this.h;
+        float h1 = 1.0f / h;
+        float h2 = 0.5f * h;
 
         x = Math.Max(Math.Min(x, this.numX * h), h);
         y = Math.Max(Math.Min(y, this.numY * h), h);
 
         
 
-        var dx = 0.0f;
-        var dy = 0.0f;
+        float dx = 0.0f;
+        float dy = 0.0f;
 
         float[] f;
 
@@ -130,20 +133,20 @@ public class Fluid {
             default: f = this.u; break;
         }
 
+ 
 
-
-        int x0 = Math.Min((int) Math.Floor((x - dx) * h1), this.numX - 1); //get X (in pixels) of cell containing point(x,y)
-        var tx = ((x - dx) - x0 * h) * h1;
+        int x0 = Math.Min((int) Math.Floor((x - dx) * h1), this.numX - 1); //get X (in pixels) of cell containing point(x,y) (in real coordinate)
+        float tx = ((x - dx) - x0 * h) * h1;
         int x1 = Math.Min(x0 + 1, this.numX - 1);                          //get X + 1
 
         int y0 = Math.Min((int) Math.Floor((y - dy) * h1), this.numY - 1);
-        var ty = ((y - dy) - y0 * h) * h1;                                  
+        float ty = ((y - dy) - y0 * h) * h1;                                  
         int y1 = Math.Min(y0 + 1, this.numY - 1);
 
-        var sx = 1.0f - tx;
-        var sy = 1.0f - ty;
+        float sx = 1.0f - tx;
+        float sy = 1.0f - ty;
 
-        var val = sx * sy * f[x0 * n + y0] +
+        float val = sx * sy * f[x0 * n + y0] +
                 tx * sy * f[x1 * n + y0] +
                 tx * ty * f[x1 * n + y1] +
                 sx * ty * f[x0 * n + y1];
@@ -178,7 +181,7 @@ public class Fluid {
         //this.newV.set(this.v);
 
         var n = this.numY;
-        var h = this.h;
+        //var h = this.h;
         var h2 = 0.5f * h;
 
         for (var i = 1; i < this.numX; i++) {

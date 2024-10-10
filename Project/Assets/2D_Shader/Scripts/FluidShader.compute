@@ -1,0 +1,193 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+#pragma kernel solveIncompressibility
+#pragma kernel extrapolateH
+#pragma kernel extrapolateV
+#pragma kernel advectVelH
+#pragma kernel advectVelV
+
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> Result;
+
+float Resolution;
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    //TODO: insert actual code here!
+
+    Result[id.xy] = float4(id.x & id.y, (id.x & 15)/15.0, (id.y & 15)/15.0, 0.0);
+
+    float x = id.x / Resolution;
+    float y = id.y / Resolution;
+
+    Result[id.xy] = float4(x, y, 1.0, 0.0);
+
+    if(id.x == Resolution / 2 || id.y == Resolution / 2 ||
+        id.x + 1 == Resolution / 2 || id.y + 1== Resolution / 2 ||
+        id.x - 1 == Resolution / 2 || id.y - 1== Resolution / 2
+        
+        )
+        Result[id.xy] = float4(1, 1, 1, 0.0);
+}
+
+
+
+RWStructuredBuffer<float> _pressure;
+RWStructuredBuffer<int>   _type;        // 0 - wall  | 1 - fluid
+RWStructuredBuffer<float> _velocityV;
+RWStructuredBuffer<float> _velocityH;
+RWTexture2D<float4> _color;
+
+
+int resolutionWidth;
+int resolutionHeight;
+
+
+
+int getCoordPressure(int x, int y, bool simulationSpace) {
+    if(simulationSpace){
+        x++; y++;
+    }
+    return x * resolutionWidth + y;
+}
+int getType(int x, int y){
+    if(x < 0 || y < 0 || x > resolutionHeight || y > resolutionWidth)
+        return 0;
+    x++; y++;
+    return _type[x * resolutionWidth + y];
+}
+int getCoordH_Left(int x, int y, bool simulationSpace) {
+    if(simulationSpace){
+        x++; y++;
+    }
+    return x * resolutionWidth + y + x; // + x; is to account for the last edge of a row
+}
+int getCoordH_Right(int x, int y, bool simulationSpace) {
+    if(simulationSpace){
+        x++; y++;
+    }
+    return x * resolutionWidth + y + 1 + x; // + x; is to account for the last edge of a row
+}
+int getCoordV_Up(int x, int y, bool simulationSpace) {
+    if(simulationSpace){
+        x++; y++;
+    }
+    return x * resolutionWidth + y;
+}
+int getCoordV_Down(int x, int y, bool simulationSpace) {
+    if(simulationSpace){
+        x++; y++;
+    }
+    return x * resolutionWidth + y + 1;
+}
+
+
+[numthreads(8, 8, 1)]
+void solveIncompressibility(uint3 id: SV_DispatchThreadID){
+
+    if(_type[id.x] == 0)
+        return;
+
+    int type_up     = getType(id.x - 1, id.y); 
+    int type_down   = getType(id.x + 1, id.y);
+    int type_left   = getType(id.x, id.y - 1);
+    int type_right  = getType(id.x, id.y + 1);
+
+    // orthogonally connected cells that are fluid
+    int fluidCells = type_up + type_down + type_left + type_right;
+
+    if(fluidCells == 0)
+        return;
+
+    //calculate outflow (divergence)
+    float div =   _velocityH[getCoordH_Right(id.x, id.y, true)] 
+                - _velocityH[getCoordH_Left (id.x, id.y, true)] 
+                + _velocityV[getCoordV_Down (id.x, id.y, true)] 
+                - _velocityV[getCoordV_Up   (id.x, id.y, true)];
+
+    //divergence average on fluid edges
+    float p  = -div / fluidCells;
+    p *= 1.9;
+    _pressure[getCoordPressure(id.x, id.y, true)] += 1 * p;
+
+    _velocityH[getCoordH_Left (id.x, id.y, true)] -= type_left * p;
+    _velocityH[getCoordH_Right(id.x, id.y, true)] -= type_right* p;
+    _velocityV[getCoordV_Up   (id.x, id.y, true)] -= type_up * p;
+    _velocityV[getCoordV_Down (id.x, id.y, true)] -= type_down * p;
+
+
+
+
+    int cellType = _type[getCoordPressure(id.x, id.y, true)];
+    _color[id.xy] = float4(1, 1, 1, 0.0);
+    //_color[id.xy] = float4(cellType, cellType, cellType, 0.0);
+}
+
+
+
+[numthreads(32, 1, 1)]
+void extrapolateH(uint3 id: SV_DispatchThreadID){
+    _velocityH[getCoordH_Left(id.x, 0, false)] = _velocityH[getCoordH_Right(id.x, 0, false)];
+
+    _velocityH[getCoordH_Right(id.x, resolutionWidth, false)] = _velocityH[getCoordH_Left(id.x, resolutionWidth, false)];
+}
+
+[numthreads(32, 1, 1)]
+void extrapolateV(uint3 id: SV_DispatchThreadID){
+    _velocityV[getCoordV_Up(0, id.x, false)] = _velocityV[getCoordV_Down(0, id.x, false)];
+
+    _velocityV[getCoordV_Down(resolutionHeight, id.x, false)] = _velocityV[getCoordV_Up(resolutionHeight, id.x, false)];
+}
+
+
+//get position of center of an edge; ex: left edge of cell (0,0) will have the center at (0.5, 0)
+uint2 getPosVerticalEdges(uint index, bool simulationSpace){
+    uint trueResWidth = resolutionWidth + 2;
+    uint x = index / (trueResWidth + 1);  // x at which edge starts, have to go down 0.5 to find center
+    uint y = index % trueResWidth;
+
+    return uint2(x,y);
+}
+
+uint2 getPosHorizontalEdges(uint index){
+    uint trueResWidth = resolutionWidth + 2;
+    uint x = index / trueResWidth;  // x at which edge starts, have to go down 0.5 to find center
+    uint y = index % trueResWidth;
+
+    return uint2(x, y);
+}
+
+float avgV(int x, int y){
+    _velocityV[getCoordV_Up()]
+}
+
+
+RWStructuredBuffer<float> _newH;
+RWStructuredBuffer<float> _newV;
+float dt;
+
+[numthreads(64, 1, 1)]
+void advectVelH(uint3 id: SV_DispatchThreadID){
+    uint2 pointWC = getPosVerticalEdges(index);//WC (world coordinates)
+    
+    //H component
+    if (getType(pointWC.x, pointWC.y) != 0.0 && getType(pointWC.x, pointWC.y - 1) != 0.0){
+        
+        float pointVelocityH = _velocityH[id.x];
+        float pointVelocityV = avgV(pointWC.x, pointWC.y);
+        // if(id.x == resolutionHeight - 1){}
+        // float h = _velocityH[getCo]
+
+    }
+
+    
+}
+
+[numthreads(64, 1, 1)]
+void advectVelV(uint3 id: SV_DispatchThreadID){
+    
+       
+}

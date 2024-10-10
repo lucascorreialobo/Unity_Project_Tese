@@ -1,0 +1,76 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+#pragma kernel colorEvolution
+#pragma kernel CSMainBuffered
+#pragma kernel FillBlack
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> Result;
+float Resolution;
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    // TODO: insert actual code here!
+
+    Result[id.xy] = float4(id.x & id.y, (id.x & 15)/15.0, (id.y & 15)/15.0, 0.0);
+
+    float x = id.x / Resolution;
+    float y = id.y / Resolution;
+
+    Result[id.xy] = float4(x, y, 1.0, 0.0);
+
+    if(id.x == Resolution / 2 || id.y == Resolution / 2 ||
+        id.x + 1 == Resolution / 2 || id.y + 1== Resolution / 2 ||
+        id.x - 1 == Resolution / 2 || id.y - 1== Resolution / 2
+        
+        )
+        Result[id.xy] = float4(1, 1, 1, 0.0);
+    
+}
+
+
+[numthreads(8,8,1)]
+void colorEvolution (uint3 id : SV_DispatchThreadID)
+{
+    float red   = Result[id.xy].x <= 0.0 ? 1.0 : Result[id.xy].x - 0.01;
+    float green = Result[id.xy].y <= 0.0 ? 1.0 : Result[id.xy].y - 0.01;
+    float blue  = Result[id.xy].z <= 0.0 ? 1.0 : Result[id.xy].z - 0.01;
+    float alpha = Result[id.xy].w;
+
+    Result[id.xy] = float4(red, green, blue, alpha);
+}
+
+
+RWStructuredBuffer<float> support;
+int2 resolution;
+
+int getCoord(int x, int y) {
+    return x * resolution.x + y;
+}
+
+[numthreads(8,8,1)]
+void CSMainBuffered (uint3 id : SV_DispatchThreadID)
+{
+    // TODO: insert actual code here!
+    support[getCoord(id.x, id.y)] = support[getCoord(id.x, id.y)] >= 1.0 ? 0 : support[getCoord(id.x, id.y)] + 0.01;
+
+
+    float cell =  support[getCoord(id.x, id.y)];
+
+    float red   =  cell >= 1.0 ? 0 : cell + 0.01;
+    float green =  cell >= 1.0 ? 0 : cell + 0.01;
+    float blue  =  cell >= 1.0 ? 0 : cell + 0.01;
+    float alpha =  0.0;
+
+    
+    
+    Result[id.xy] = float4(red, green, blue, alpha);
+}
+
+[numthreads(8,8,1)]
+void FillBlack(uint3 id : SV_DispatchThreadID)
+{
+    Result[id.xy] = float4(0, 0, 0, 0);
+}
