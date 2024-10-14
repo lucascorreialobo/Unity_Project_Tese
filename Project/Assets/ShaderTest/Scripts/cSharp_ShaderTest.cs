@@ -32,15 +32,16 @@ public class cSharp_ShaderTest : MonoBehaviour
 
 
 
-        // int CSMain = SetupCSMainKernel();
-        // shaderTest.Dispatch(CSMain, resolution.x / 8, resolution.y / 8, 1);
+        int CSMain = SetupCSMainKernel();
+        shaderTest.Dispatch(CSMain, resolution.x / 8, resolution.y / 8, 1);
 
         this.GetComponent<Renderer>().material.mainTexture = renderTex;
 
         //cam.targetTexture = renderTex;
 
-        // colorEvolKernel = SetupColorEvolutionKernel();
-        SetupNRunFillBlack();
+        colorEvolKernel = SetupColorEvolutionKernel();
+        // SetupNRunFillBlack();
+        // SetupNRunMagic();
         support = new float[resolution.x * resolution.y];
         Array.Fill(support, 0.0f);
         CSMainBuffered = SetupCSMainBuffered();
@@ -52,8 +53,8 @@ public class cSharp_ShaderTest : MonoBehaviour
     {
         float startTime = Time.realtimeSinceStartup;
 
-        //shaderTest.Dispatch(colorEvolKernel, renderTex.width / 8, renderTex.height / 8, 1);
-        shaderTest.Dispatch(CSMainBuffered, resolution.x / 8, resolution.y / 8, 1);
+        shaderTest.Dispatch(colorEvolKernel, renderTex.width / 8, renderTex.height / 8, 1);
+        // shaderTest.Dispatch(CSMainBuffered, resolution.x / 8, resolution.y / 8, 1);
 
         float endTime = Time.realtimeSinceStartup;
     }
@@ -109,6 +110,14 @@ public class cSharp_ShaderTest : MonoBehaviour
 
         shaderTest.SetTexture(kernel, "Result", renderTex);
         shaderTest.Dispatch(kernel, renderTex.width / 8, renderTex.height / 8, 1);
+    }
+
+    private void SetupNRunMagic()
+    {
+        int kernel = shaderTest.FindKernel("Magic");
+
+        shaderTest.SetTexture(kernel, "Result", renderTex);
+        shaderTest.Dispatch(kernel, renderTex.width / 64, renderTex.height, 1);
     }
 
 }

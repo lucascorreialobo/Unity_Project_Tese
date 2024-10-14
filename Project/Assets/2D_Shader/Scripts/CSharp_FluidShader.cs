@@ -24,6 +24,8 @@ public class CSharp_FluidShader : MonoBehaviour
     //simulated width/height; an extra layer of cell will be added on each edge to deal with border conditions
     private int resolutionWidth = 128; 
     private int resolutionHeight = 128;
+
+    private float dt = 0.01f;
     private int trueResolutionWidth;  
     private int trueResolutionHeight; 
 
@@ -40,7 +42,8 @@ public class CSharp_FluidShader : MonoBehaviour
         public int solveIncompressibility = -1;
         public int extrapolateH = -1;
         public int extrapolateV = -1;
-        public int advectVel = -1;
+        public int advectVelV = -1;
+        public int advectVelH = -1;
         public int advectSmoke = -1;
     }
     private class CBs {  //compute buffers
@@ -48,6 +51,8 @@ public class CSharp_FluidShader : MonoBehaviour
         public ComputeBuffer type;
         public ComputeBuffer velocityV;
         public ComputeBuffer velocityH;
+        public ComputeBuffer newV;
+        public ComputeBuffer newH;
     }
     private enum FIELD {
         U_FIELD,
@@ -98,10 +103,6 @@ public class CSharp_FluidShader : MonoBehaviour
 
         // callSolveIncompressibilityShader(false);
 
-
-
-
-
     }
 
     // Update is called once per frame
@@ -138,6 +139,34 @@ public class CSharp_FluidShader : MonoBehaviour
 
     }
 
+    private void createComputeBuffers() {
+        cBuffers.pressure = new ComputeBuffer(pressure.Length, sizeof(float));
+        cBuffers.pressure.SetData(pressure);
+
+        cBuffers.velocityV = new ComputeBuffer(velocityV.Length, sizeof(float));
+        cBuffers.velocityV.SetData(velocityV);
+
+        cBuffers.velocityH = new ComputeBuffer(velocityH.Length, sizeof(float));
+        cBuffers.velocityH.SetData(velocityH);
+
+        cBuffers.type = new ComputeBuffer(type.Length, sizeof(int));
+        cBuffers.type.SetData(type);
+
+        cBuffers.newH = new ComputeBuffer(velocityH.Length, sizeof(float));
+        cBuffers.newH.SetData(velocityH);
+
+        cBuffers.newV = new ComputeBuffer(velocityV.Length, sizeof(float));
+        cBuffers.newV.SetData(velocityV);
+    }
+
+    private void setShaderWideVariables() {
+        //ints
+        fluidShader.SetInt("resolutionWidth", resolutionWidth);
+        fluidShader.SetInt("resolutionHeight", resolutionHeight);
+
+        //float
+        fluidShader.SetFloat("dt", dt);
+    }
     void createGrid() {
         visualGrid = new GameObject[trueResolutionHeight * trueResolutionWidth];
         origin = trueResolutionWidth * gridSpacing / 2f * -1f;
@@ -178,18 +207,6 @@ public class CSharp_FluidShader : MonoBehaviour
         int kernel = fluidShader.FindKernel("solveIncompressibility");
         kernels.solveIncompressibility = kernel;
 
-        cBuffers.pressure = new ComputeBuffer(pressure.Length, sizeof(float));
-        cBuffers.pressure.SetData(pressure);
-
-        cBuffers.velocityV = new ComputeBuffer(velocityV.Length, sizeof(float));
-        cBuffers.velocityV.SetData(velocityV);
-
-        cBuffers.velocityH = new ComputeBuffer(velocityH.Length, sizeof(float));
-        cBuffers.velocityH.SetData(velocityH);
-
-        cBuffers.type = new ComputeBuffer(type.Length, sizeof(int));
-        cBuffers.type.SetData(type);
-
         //buffers
         fluidShader.SetBuffer(kernel, "_velocityV", cBuffers.velocityV);
         fluidShader.SetBuffer(kernel, "_velocityH", cBuffers.velocityH);
@@ -202,9 +219,6 @@ public class CSharp_FluidShader : MonoBehaviour
         fluidTex.Create();
         fluidShader.SetTexture(kernel, "_color", fluidTex);
 
-        //ints
-        fluidShader.SetInt("resolutionWidth", resolutionWidth);
-        fluidShader.SetInt("resolutionHeight", resolutionHeight);
 
         plane.GetComponent<Renderer>().material.mainTexture = fluidTex;
     }
@@ -288,6 +302,26 @@ public class CSharp_FluidShader : MonoBehaviour
     }
 
 
+    private void SetupAdvectVelocityShaders() {
+        //V
+        int kernel = fluidShader.FindKernel("advectVelV");
+        kernels.advectVelV = kernel;
+
+        fluidShader.SetBuffer(kernel, "_type", cBuffers.type);
+        fluidShader.SetBuffer(kernel, "_velocityV", cBuffers.velocityV);
+        fluidShader.SetBuffer(kernel, "_velocityH", cBuffers.velocityH);
+        fluidShader.SetBuffer(kernel, "_newV", cBuffers.newV);
+
+        //H
+        kernel = fluidShader.FindKernel("advectVelH");
+        kernels.advectVelH = kernel;
+
+        fluidShader.SetBuffer(kernel, "_type", cBuffers.type);
+        fluidShader.SetBuffer(kernel, "_velocityV", cBuffers.velocityV);
+        fluidShader.SetBuffer(kernel, "_velocityH", cBuffers.velocityH);
+        fluidShader.SetBuffer(kernel, "_newH", cBuffers.newH);
+
+    }
     private void callCSMain() {
         if (fluidShader != null) {
             renderTex = new RenderTexture(256, 256, 24);

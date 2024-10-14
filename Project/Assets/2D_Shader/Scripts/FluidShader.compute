@@ -142,7 +142,7 @@ void extrapolateV(uint3 id: SV_DispatchThreadID){
     _velocityV[getCoordV_Down(resolutionHeight, id.x, false)] = _velocityV[getCoordV_Up(resolutionHeight, id.x, false)];
 }
 
-
+/*
 //get position of center of an edge; ex: left edge of cell (0,0) will have the center at (0.5, 0)
 uint2 getPosVerticalEdges(uint index, bool simulationSpace){
     uint trueResWidth = resolutionWidth + 2;
@@ -162,32 +162,104 @@ uint2 getPosHorizontalEdges(uint index){
 
 float avgV(int x, int y){
     _velocityV[getCoordV_Up()]
-}
+}*/
+
 
 
 RWStructuredBuffer<float> _newH;
 RWStructuredBuffer<float> _newV;
 float dt;
 
-[numthreads(64, 1, 1)]
+[numthreads(64, 1, 1)] //Call dispatch with (x / 64, y, 1)
 void advectVelH(uint3 id: SV_DispatchThreadID){
-    uint2 pointWC = getPosVerticalEdges(index);//WC (world coordinates)
-    
-    //H component
-    if (getType(pointWC.x, pointWC.y) != 0.0 && getType(pointWC.x, pointWC.y - 1) != 0.0){
-        
-        float pointVelocityH = _velocityH[id.x];
-        float pointVelocityV = avgV(pointWC.x, pointWC.y);
-        // if(id.x == resolutionHeight - 1){}
-        // float h = _velocityH[getCo]
-
-    }
-
     
 }
 
+uint sim1D_to_real1D__VeloctyV(uint index) {
+    uint trueResWidth = resolutionWidth + 2;
+    uint trueIndex = (index / resolutionWidth) + 1; //get row; +1 because first row does not belong to simulation space
+    trueIndex = trueIndex * trueResWidth; //set trueIndex to start of row
+    trueIndex = trueIndex + (index % resolutionWidth) + 1; //add the collumn necessary plus first one
+    return trueIndex;
+}
+
+//This function deals only with velocityV coordinates
+uint sim2D_to_real1D_VelocityV(uint2 index) {
+    uint x = index.x + 1; //+1 is accounting for the border cell
+    uint y = index.y + 1;
+    return x * resolutionWidth + y;
+}
+
+//get the cell to the top of the given edge in real2D 
+uint2 sim2D_velocityV_to_real2D_topCell(uint2 index) {
+    int x = index.x;
+    int y = index.y + 1;
+    return uint2(x, y);
+}
+uint2 sim2D_velocityV_to_real2D_bottomCell(uint2 index) {
+    int x = index.x + 1;
+    int y = index.y + 1;
+    return uint2(x, y);
+}
+
+//get the average velocityH in the center of the velocityV edge between the to given cells; 
+float avgH(uint2 topCell) {
+    float topLeft     = _velocityH[getCoordH_Left (topCell.x, topCell.y, false)];
+    float topRight    = _velocityH[getCoordH_Right(topCell.x, topCell.y, false)];
+    float bottomLeft  = _velocityH[getCoordH_Left (topCell.x + 1, topCell.y, false)]; 
+    float bottomRight = _velocityH[getCoordH_Right(topCell.x + 1, topCell.y, false)];
+
+    float average = (topLeft + topRight + bottomLeft + bottomRight)* 0.25;
+
+    return average;
+}
+
+//calculates the weighted average of vertical speed on "pos"
+float getVerticalSpeed(float2 pos) {
+    uint2 leftCell = uint2((uint) pos.x, (uint) pos.y - 0.5);
+
+    //edge center for top left edge
+    float2 tl = float2(leftCell.x, leftCell.y + 0.5); 
+
+    //vector going from "tl" to "pos", gives us the distance between the two points
+    float2 vec = pos-tl;
+
+    float dx = vec.x;
+    float dy = vec.y;
+    float sx = dx - 1;
+    float sy = dy - 1;
+
+    float avg = sx * sy * _velocityV[getCoordV_Up(leftCell.x, leftCell.y, false)] + 
+                dx * sy * _velocityV[getCoordV_Down(leftCell.x, leftCell.y, false)] + 
+                sx * dy * _velocityV[getCoordV_Up(leftCell.x, leftCell.y + 1, false)] + 
+                dx * dy * _velocityV[getCoordV_Down(leftCell.x, leftCell.y + 1, false)];
+
+    return avg;
+}
+
+
+
 [numthreads(64, 1, 1)]
 void advectVelV(uint3 id: SV_DispatchThreadID){
-    
+    uint  velocityV_real1D = sim2D_to_real1D_VelocityV(id.xy);
+    uint2 velocityV_real2D = id.xy + 1;
+    uint2 topCell_real2D = sim2D_velocityV_to_real2D_topCell(id.xy);
+    uint2 bottomCell_real2D = sim2D_velocityV_to_real2D_bottomCell(id.xy);
+
+    if(getType(topCell_real2D.x, topCell_real2D.y) != 0 &&
+       getType(bottomCell_real2D.x, bottomCell_real2D.y) 
+      ) {
+        float velV = _velocityV[velocityV_real1D];
+        float velH = avgH(topCell_real2D);
+
+        //center of velocityV edge
+        float2 edgeCenter = float2(bottomCell_real2D.x, bottomCell_real2D.y + 0.5);
+
+        //calculate where the "particle" at the edge center was in the previous iteration
+        float2 newPos = float2(edgeCenter.x - (dt * velV), 
+                               edgeCenter.y - (dt * velH));
+
+        _newV[velocityV_real1D] = getVerticalSpeed(newPos);
+    }
        
 }

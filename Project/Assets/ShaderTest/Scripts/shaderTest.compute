@@ -3,6 +3,7 @@
 #pragma kernel colorEvolution
 #pragma kernel CSMainBuffered
 #pragma kernel FillBlack
+#pragma kernel Magic
 
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
@@ -73,4 +74,11 @@ void CSMainBuffered (uint3 id : SV_DispatchThreadID)
 void FillBlack(uint3 id : SV_DispatchThreadID)
 {
     Result[id.xy] = float4(0, 0, 0, 0);
+}
+
+
+[numthreads(64,1,1)]
+void Magic(uint3 id : SV_DispatchThreadID)
+{
+    Result[id.xy] = float4(1, 0, 0, 0);
 }
