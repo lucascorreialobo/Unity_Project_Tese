@@ -258,9 +258,9 @@ public class Fluid {
         Array.Fill(p, 0.0f);
         this.solveIncompressibility(numIters, dt);
 
-        this.extrapolate();
-        this.advectVel(dt);
-        this.advectSmoke(dt);
+        // this.extrapolate();
+        // this.advectVel(dt);
+        // this.advectSmoke(dt);
     }
 
 }

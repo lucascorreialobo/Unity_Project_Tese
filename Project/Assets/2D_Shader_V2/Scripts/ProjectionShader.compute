@@ -1,0 +1,65 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+#define U(pos) uint2(pos.x-1,pos.y)
+#define D(pos) uint2(pos.x+1,pos.y)
+#define L(pos) uint2(pos.x,pos.y-1)
+#define R(pos) uint2(pos.x,pos.y+1)
+
+RWStructuredBuffer<float> _velocityV;
+RWStructuredBuffer<float> _velocityH;
+
+RWStructuredBuffer<int> _isFluid;
+
+uint2 _offset; //can have values: (0,0) (0,1) (1,0) (1,1). Used to avoid race conditions
+
+int _simResX; //height
+int _simResY; //width
+
+float getVelocityV(uint2 pos){
+    uint index1D = pos.x * _simResY + pos.y;
+    return _velocityV[index1D];
+}
+float getVelocityH(uint2 pos){
+    uint index1D = pos.x * _simResY + pos.y;
+    return _velocityH[index1D];
+}
+int getIsFluid(uint2 pos){
+    uint index1D = pos.x * _simResY + pos.y;
+    return _isFluid[index1D];
+}
+uint vUp(uint2 pos){return pos.x * (_simResY+2) + pos.y;}
+uint vDown(uint2 pos){return (pos.x + 1) * (_simResY+2) + pos.y;}
+uint hLeft(uint2 pos){return pos.x * (_simResY + 2 + 1) + pos.y;}
+uint hRight(uint2 pos){return pos.x * (_simResY + 2 + 1) + pos.y + 1;}
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    uint2 basePos = id.xy;
+
+    uint2 simPos = (basePos * 2) + _offset; //will get the coordinates based on current offset
+
+    if(simPos.x >= _simResX || simPos.y >= _simResY){
+        return;
+    }
+
+    int type_up     = getIsFluid(U(simPos)); 
+    int type_down   = getIsFluid(D(simPos));
+    int type_left   = getIsFluid(L(simPos));
+    int type_right  = getIsFluid(R(simPos));
+
+    int fluidNeighbours = type_up + type_down + type_left + type_right;
+
+    float div =   _velocityH[hRight(simPos)] 
+                - _velocityH[hLeft (simPos)] 
+                + _velocityV[vDown (simPos)] 
+                - _velocityV[vUp   (simPos)];
+
+    float p = -div / fluidNeighbours;
+
+    _velocityH[hRight(simPos)] += type_right * p;
+    _velocityH[hLeft (simPos)] -= type_left * p;
+    _velocityV[vDown (simPos)] += type_down * p;
+    _velocityV[vUp   (simPos)] -= type_up * p;
+}

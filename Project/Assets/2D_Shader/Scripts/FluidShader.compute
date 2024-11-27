@@ -1,10 +1,15 @@
 // Each #kernel tells which function to compile; you can have many kernels
-#pragma kernel CSMain
+// #pragma kernel CSMain
 #pragma kernel solveIncompressibility
 #pragma kernel extrapolateH
 #pragma kernel extrapolateV
 #pragma kernel advectVelH
 #pragma kernel advectVelV
+#pragma kernel extrapolateCorners
+#pragma kernel fillPressure
+#pragma kernel advectSmoke
+#pragma kernel colorTexture
+
 
 
 // Create a RenderTexture with enableRandomWrite flag and set it
@@ -13,25 +18,25 @@ RWTexture2D<float4> Result;
 
 float Resolution;
 
-[numthreads(8,8,1)]
-void CSMain (uint3 id : SV_DispatchThreadID)
-{
-    //TODO: insert actual code here!
+// [numthreads(8,8,1)]
+// void CSMain (uint3 id : SV_DispatchThreadID)
+// {
+//     //TODO: insert actual code here!
 
-    Result[id.xy] = float4(id.x & id.y, (id.x & 15)/15.0, (id.y & 15)/15.0, 0.0);
+//     Result[id.xy] = float4(id.x & id.y, (id.x & 15)/15.0, (id.y & 15)/15.0, 0.0);
 
-    float x = id.x / Resolution;
-    float y = id.y / Resolution;
+//     float x = id.x / Resolution;
+//     float y = id.y / Resolution;
 
-    Result[id.xy] = float4(x, y, 1.0, 0.0);
+//     Result[id.xy] = float4(x, y, 1.0, 0.0);
 
-    if(id.x == Resolution / 2 || id.y == Resolution / 2 ||
-        id.x + 1 == Resolution / 2 || id.y + 1== Resolution / 2 ||
-        id.x - 1 == Resolution / 2 || id.y - 1== Resolution / 2
+//     if(id.x == Resolution / 2 || id.y == Resolution / 2 ||
+//         id.x + 1 == Resolution / 2 || id.y + 1== Resolution / 2 ||
+//         id.x - 1 == Resolution / 2 || id.y - 1== Resolution / 2
         
-        )
-        Result[id.xy] = float4(1, 1, 1, 0.0);
-}
+//         )
+//         Result[id.xy] = float4(1, 1, 1, 0.0);
+// }
 
 
 
@@ -51,44 +56,49 @@ int getCoordPressure(int x, int y, bool simulationSpace) {
     if(simulationSpace){
         x++; y++;
     }
-    return x * resolutionWidth + y;
+    return x * (resolutionWidth+2) + y;
 }
 int getType(int x, int y){
-    if(x < 0 || y < 0 || x > resolutionHeight || y > resolutionWidth)
+    if(x < 0 || y < 0 || x >= resolutionHeight || y >= resolutionWidth)
         return 0;
     x++; y++;
-    return _type[x * resolutionWidth + y];
+    return _type[x * (resolutionWidth+2) + y];
 }
 int getCoordH_Left(int x, int y, bool simulationSpace) {
+    int width = resolutionWidth + 2 + 1;
     if(simulationSpace){
         x++; y++;
     }
-    return x * resolutionWidth + y + x; // + x; is to account for the last edge of a row
+    return x * width + y; 
 }
 int getCoordH_Right(int x, int y, bool simulationSpace) {
+    int width = resolutionWidth + 2 + 1;
     if(simulationSpace){
         x++; y++;
     }
-    return x * resolutionWidth + y + 1 + x; // + x; is to account for the last edge of a row
+    return x * width + y + 1; 
 }
 int getCoordV_Up(int x, int y, bool simulationSpace) {
     if(simulationSpace){
         x++; y++;
     }
-    return x * resolutionWidth + y;
+    return x * (resolutionWidth+2) + y;
 }
 int getCoordV_Down(int x, int y, bool simulationSpace) {
     if(simulationSpace){
         x++; y++;
     }
-    return x * resolutionWidth + y + 1;
+    return (x + 1) * (resolutionWidth+2) + y;
 }
+
 
 
 [numthreads(8, 8, 1)]
 void solveIncompressibility(uint3 id: SV_DispatchThreadID){
 
-    if(_type[id.x] == 0)
+    // if(_type[id.x] == 0)
+    //     return;
+    if(getType(id.x, id.y) == 0)
         return;
 
     int type_up     = getType(id.x - 1, id.y); 
@@ -96,11 +106,13 @@ void solveIncompressibility(uint3 id: SV_DispatchThreadID){
     int type_left   = getType(id.x, id.y - 1);
     int type_right  = getType(id.x, id.y + 1);
 
-    // orthogonally connected cells that are fluid
+    //number orthogonally connected cells that are fluid
     int fluidCells = type_up + type_down + type_left + type_right;
 
     if(fluidCells == 0)
         return;
+
+    
 
     //calculate outflow (divergence)
     float div =   _velocityH[getCoordH_Right(id.x, id.y, true)] 
@@ -110,97 +122,185 @@ void solveIncompressibility(uint3 id: SV_DispatchThreadID){
 
     //divergence average on fluid edges
     float p  = -div / fluidCells;
-    p *= 1.9;
-    _pressure[getCoordPressure(id.x, id.y, true)] += 1 * p;
+    // p *= 1.9;
+    _pressure[getCoordPressure(id.x, id.y, true)] += 0.01 * p;
 
+    _velocityH[getCoordH_Right(id.x, id.y, true)] += type_right * p;
     _velocityH[getCoordH_Left (id.x, id.y, true)] -= type_left * p;
-    _velocityH[getCoordH_Right(id.x, id.y, true)] -= type_right* p;
+    _velocityV[getCoordV_Down (id.x, id.y, true)] += type_down * p;
     _velocityV[getCoordV_Up   (id.x, id.y, true)] -= type_up * p;
-    _velocityV[getCoordV_Down (id.x, id.y, true)] -= type_down * p;
 
 
 
 
-    int cellType = _type[getCoordPressure(id.x, id.y, true)];
-    _color[id.xy] = float4(1, 1, 1, 0.0);
+    // int cellType = _type[getCoordPressure(id.x, id.y, true)];
+    // _color[id.xy] = float4(1, 1, 1, 0.0);
     //_color[id.xy] = float4(cellType, cellType, cellType, 0.0);
 }
 
 
-
-[numthreads(32, 1, 1)]
+//extrapolates
+[numthreads(64, 1, 1)]
 void extrapolateH(uint3 id: SV_DispatchThreadID){
-    _velocityH[getCoordH_Left(id.x, 0, false)] = _velocityH[getCoordH_Right(id.x, 0, false)];
+    // _velocityH[getCoordH_Left(id.x, 0, false)] = _velocityH[getCoordH_Right(id.x, 0, false)];
 
-    _velocityH[getCoordH_Right(id.x, resolutionWidth, false)] = _velocityH[getCoordH_Left(id.x, resolutionWidth, false)];
+    // _velocityH[getCoordH_Right(id.x, resolutionWidth + 1, false)] = _velocityH[getCoordH_Left(id.x, resolutionWidth + 1, false)];
+
+    // _velocityH[getCoordH_Left(0, id.x, false)] = _velocityH[getCoordH_Left(1, id.x, false)];
+
+
+    //new way
+    _velocityH[getCoordH_Left(0, id.x + 1, false)] = _velocityH[getCoordH_Left(1, id.x + 1, false)];
+    _velocityV[getCoordV_Up  (0, id.x + 1, false)] = _velocityV[getCoordV_Up  (1, id.x + 1, false)];
+    
+    _velocityH[getCoordH_Left(resolutionHeight + 1, id.x + 1, false)] = _velocityH[getCoordH_Left(resolutionHeight, id.x + 1, false)];
+    _velocityV[getCoordV_Down(resolutionHeight + 1, id.x + 1, false)] = _velocityV[getCoordV_Down(resolutionHeight, id.x + 1, false)];
 }
 
-[numthreads(32, 1, 1)]
+[numthreads(64, 1, 1)]
 void extrapolateV(uint3 id: SV_DispatchThreadID){
-    _velocityV[getCoordV_Up(0, id.x, false)] = _velocityV[getCoordV_Down(0, id.x, false)];
+    // _velocityV[getCoordV_Up(0, id.x, false)] = _velocityV[getCoordV_Down(0, id.x, false)];
 
-    _velocityV[getCoordV_Down(resolutionHeight, id.x, false)] = _velocityV[getCoordV_Up(resolutionHeight, id.x, false)];
+    // _velocityV[getCoordV_Down(resolutionHeight + 1, id.x, false)] = _velocityV[getCoordV_Up(resolutionHeight + 1, id.x, false)];
+
+    //new way
+    _velocityH[getCoordH_Left(id.x + 1, 0, false)] = _velocityH[getCoordH_Left(id.x + 1, 1, false)];
+    _velocityV[getCoordV_Up  (id.x + 1, 0, false)] = _velocityV[getCoordV_Up  (id.x + 1, 1, false)];
+
+    _velocityH[getCoordH_Right(id.x + 1, resolutionWidth + 1, false)] = _velocityH[getCoordH_Right(id.x + 1, resolutionWidth, false)];
+    _velocityV[getCoordV_Up   (id.x + 1, resolutionWidth + 1, false)] = _velocityV[getCoordV_Up   (id.x + 1, resolutionWidth, false)];
 }
 
-/*
-//get position of center of an edge; ex: left edge of cell (0,0) will have the center at (0.5, 0)
-uint2 getPosVerticalEdges(uint index, bool simulationSpace){
-    uint trueResWidth = resolutionWidth + 2;
-    uint x = index / (trueResWidth + 1);  // x at which edge starts, have to go down 0.5 to find center
-    uint y = index % trueResWidth;
+[numthreads(1,1,1)]
+void extrapolateCorners(uint3 id: SV_DISPATCHTHREADID) {
+    //top left corner
+    _velocityV[getCoordV_Up  (0, 0, false)] = _velocityV[getCoordV_Down (0, 0, false)];
+    _velocityH[getCoordH_Left(0, 0, false)] = _velocityH[getCoordH_Right(0, 0, false)];
 
-    return uint2(x,y);
+    //top right corner
+    _velocityH[getCoordH_Left (0, resolutionWidth + 1, false)] = _velocityH[getCoordH_Left(1, resolutionWidth + 1, false)];
+    _velocityV[getCoordV_Up   (0, resolutionWidth + 1, false)] = _velocityV[getCoordV_Down(0, resolutionWidth + 1, false)];
+    _velocityH[getCoordH_Right(0, resolutionWidth + 1, false)] = _velocityH[getCoordH_Left(0, resolutionWidth + 1, false)];
+
+    //bottom left corner
+    _velocityV[getCoordV_Up  (resolutionHeight + 1, 0, false)] = _velocityV[getCoordV_Up   (resolutionHeight + 1, 1, false)];
+    _velocityV[getCoordV_Down(resolutionHeight + 1, 0, false)] = _velocityV[getCoordV_Up   (resolutionHeight + 1, 0, false)];
+    _velocityH[getCoordH_Left(resolutionHeight + 1, 0, false)] = _velocityH[getCoordH_Right(resolutionHeight + 1, 0, false)];
+
+    //bottom right corner
+    _velocityH[getCoordH_Left (resolutionHeight + 1, resolutionWidth + 1, false)] = _velocityH[getCoordH_Left(resolutionHeight, resolutionWidth + 1, false)];
+    _velocityV[getCoordV_Up   (resolutionHeight + 1, resolutionWidth + 1, false)] = _velocityV[getCoordV_Up  (resolutionHeight, resolutionWidth + 1, false)];
+    _velocityV[getCoordV_Down (resolutionHeight + 1, resolutionWidth + 1, false)] = _velocityV[getCoordV_Up  (resolutionHeight + 1, resolutionWidth + 1, false)];
+    _velocityH[getCoordH_Right(resolutionHeight + 1, resolutionWidth + 1, false)] = _velocityH[getCoordH_Left(resolutionHeight + 1, resolutionWidth + 1, false)];
 }
 
-uint2 getPosHorizontalEdges(uint index){
-    uint trueResWidth = resolutionWidth + 2;
-    uint x = index / trueResWidth;  // x at which edge starts, have to go down 0.5 to find center
-    uint y = index % trueResWidth;
 
-    return uint2(x, y);
-}
-
-float avgV(int x, int y){
-    _velocityV[getCoordV_Up()]
-}*/
-
-
-
+//advect
 RWStructuredBuffer<float> _newH;
 RWStructuredBuffer<float> _newV;
 float dt;
 
-[numthreads(64, 1, 1)] //Call dispatch with (x / 64, y, 1)
-void advectVelH(uint3 id: SV_DispatchThreadID){
-    
+uint sim2D_to_real1D_VelocityH(uint2 index){
+    uint trueResWidth = resolutionWidth + 2 + 1;//+1 -> there is one extra H edge per row
+    uint x = index.x + 1; //+1 is accounting for the border cell
+    uint y = index.y + 1;
+    return x * trueResWidth + y;
 }
 
-uint sim1D_to_real1D__VeloctyV(uint index) {
-    uint trueResWidth = resolutionWidth + 2;
-    uint trueIndex = (index / resolutionWidth) + 1; //get row; +1 because first row does not belong to simulation space
-    trueIndex = trueIndex * trueResWidth; //set trueIndex to start of row
-    trueIndex = trueIndex + (index % resolutionWidth) + 1; //add the collumn necessary plus first one
-    return trueIndex;
+uint2 sim2D_velocityH_to_real2D_leftCell(uint2 index) {
+    uint x = index.x + 1;
+    uint y = index.y;
+    return uint2(x, y);
 }
+
+float avgV(uint2 leftCell) {
+    float topLeft     = _velocityV[getCoordV_Up  (leftCell.x, leftCell.y, false)];
+    float topRight    = _velocityV[getCoordV_Down(leftCell.x, leftCell.y, false)];
+    float bottomLeft  = _velocityV[getCoordV_Up  (leftCell.x, leftCell.y + 1, false)]; 
+    float bottomRight = _velocityV[getCoordV_Down(leftCell.x, leftCell.y + 1, false)];
+
+    float average = (topLeft + topRight + bottomLeft + bottomRight)* 0.25;
+    return average;
+}
+
+float getHorizontalSpeed(float2 pos) {
+    uint2 topCell = uint2((uint) (pos.x - 0.5), (uint) pos.y); //casting is rounding down
+
+    //edge center for top left edge
+    float2 tl = float2(topCell.x + 0.5, topCell.y); 
+
+    //vector going from "tl" to "pos", gives us the distance between the two points
+    float2 vec = pos-tl;
+
+    float dx = vec.x;
+    float dy = vec.y;
+    float sx = 1 - dx;
+    float sy = 1 - dy;
+
+    float avg = sx * sy * _velocityH[getCoordH_Left (topCell.x, topCell.y, false)] + 
+                dx * sy * _velocityH[getCoordH_Left (topCell.x + 1, topCell.y, false)] + 
+                sx * dy * _velocityH[getCoordH_Right(topCell.x, topCell.y, false)] + 
+                dx * dy * _velocityH[getCoordH_Right(topCell.x + 1, topCell.y, false)];
+
+    return avg;
+}
+
+//[numthreads(1, 64, 1)] //Call dispatch with (height, width / 64, 1)
+[numthreads(64, 1, 1)]
+void advectVelH(uint3 id: SV_DispatchThreadID){
+    uint  velocityH_real1D = sim2D_to_real1D_VelocityH(id.xy);
+    uint2 velocityH_real2D = id.xy + 1; 
+    uint2 leftCell_real2D = sim2D_velocityH_to_real2D_leftCell(id.xy);
+    uint2 rightCell_real2D = uint2(leftCell_real2D.x, leftCell_real2D.y + 1);
+
+    if(getType(leftCell_real2D.x-1, leftCell_real2D.y-1) != 0 &&
+       getType(rightCell_real2D.x-1, rightCell_real2D.y-1) != 0
+      ) {
+        float velV = avgV(leftCell_real2D);
+        float velH = _velocityH[velocityH_real1D];
+
+        //center of velocityV edge
+        float2 edgeCenter = float2(rightCell_real2D.x + 0.5, rightCell_real2D.y);
+
+        //calculate where the "particle" at the edge center was in the previous iteration
+        float2 newPos = float2(edgeCenter.x - (dt * velV), 
+                               edgeCenter.y - (dt * velH));
+
+        _newH[velocityH_real1D] = getHorizontalSpeed(newPos);
+        // if(newPos.x == (int) newPos.x || newPos.y == (int) newPos.y){
+        //     _newH[velocityH_real1D] = 1;
+        // }
+        
+    }
+}
+
+// uint sim1D_to_real1D__VeloctyV(uint index) {
+//     uint trueResWidth = resolutionWidth + 2;
+//     uint trueIndex = (index / resolutionWidth) + 1; //get row; +1 because first row does not belong to simulation space
+//     trueIndex = trueIndex * trueResWidth; //set trueIndex to start of row
+//     trueIndex = trueIndex + (index % resolutionWidth) + 1; //add the collumn necessary plus first one
+//     return trueIndex;
+// }
 
 //This function deals only with velocityV coordinates
 uint sim2D_to_real1D_VelocityV(uint2 index) {
+    uint trueResWidth = resolutionWidth + 2;
     uint x = index.x + 1; //+1 is accounting for the border cell
     uint y = index.y + 1;
-    return x * resolutionWidth + y;
+    return x * trueResWidth + y;
 }
 
 //get the cell to the top of the given edge in real2D 
 uint2 sim2D_velocityV_to_real2D_topCell(uint2 index) {
-    int x = index.x;
-    int y = index.y + 1;
+    uint x = index.x;
+    uint y = index.y + 1;
     return uint2(x, y);
 }
-uint2 sim2D_velocityV_to_real2D_bottomCell(uint2 index) {
-    int x = index.x + 1;
-    int y = index.y + 1;
-    return uint2(x, y);
-}
+// uint2 sim2D_velocityV_to_real2D_bottomCell(uint2 index) {
+//     int x = index.x + 1;
+//     int y = index.y + 1;
+//     return uint2(x, y);
+// }
 
 //get the average velocityH in the center of the velocityV edge between the to given cells; 
 float avgH(uint2 topCell) {
@@ -216,7 +316,7 @@ float avgH(uint2 topCell) {
 
 //calculates the weighted average of vertical speed on "pos"
 float getVerticalSpeed(float2 pos) {
-    uint2 leftCell = uint2((uint) pos.x, (uint) pos.y - 0.5);
+    uint2 leftCell = uint2((uint) pos.x, (uint) (pos.y - 0.5)); //casting is rounding down
 
     //edge center for top left edge
     float2 tl = float2(leftCell.x, leftCell.y + 0.5); 
@@ -226,12 +326,12 @@ float getVerticalSpeed(float2 pos) {
 
     float dx = vec.x;
     float dy = vec.y;
-    float sx = dx - 1;
-    float sy = dy - 1;
+    float sx = 1 - dx;
+    float sy = 1 - dy;
 
-    float avg = sx * sy * _velocityV[getCoordV_Up(leftCell.x, leftCell.y, false)] + 
+    float avg = sx * sy * _velocityV[getCoordV_Up  (leftCell.x, leftCell.y, false)] + 
                 dx * sy * _velocityV[getCoordV_Down(leftCell.x, leftCell.y, false)] + 
-                sx * dy * _velocityV[getCoordV_Up(leftCell.x, leftCell.y + 1, false)] + 
+                sx * dy * _velocityV[getCoordV_Up  (leftCell.x, leftCell.y + 1, false)] + 
                 dx * dy * _velocityV[getCoordV_Down(leftCell.x, leftCell.y + 1, false)];
 
     return avg;
@@ -239,15 +339,16 @@ float getVerticalSpeed(float2 pos) {
 
 
 
-[numthreads(64, 1, 1)]
+//[numthreads(64, 1, 1)]
+[numthreads(1, 64, 1)]
 void advectVelV(uint3 id: SV_DispatchThreadID){
     uint  velocityV_real1D = sim2D_to_real1D_VelocityV(id.xy);
     uint2 velocityV_real2D = id.xy + 1;
     uint2 topCell_real2D = sim2D_velocityV_to_real2D_topCell(id.xy);
-    uint2 bottomCell_real2D = sim2D_velocityV_to_real2D_bottomCell(id.xy);
+    uint2 bottomCell_real2D = uint2(topCell_real2D.x + 1, topCell_real2D.y);
 
-    if(getType(topCell_real2D.x, topCell_real2D.y) != 0 &&
-       getType(bottomCell_real2D.x, bottomCell_real2D.y) 
+    if(getType(topCell_real2D.x-1, topCell_real2D.y-1) != 0 &&
+       getType(bottomCell_real2D.x-1, bottomCell_real2D.y-1) != 0 
       ) {
         float velV = _velocityV[velocityV_real1D];
         float velH = avgH(topCell_real2D);
@@ -262,4 +363,96 @@ void advectVelV(uint3 id: SV_DispatchThreadID){
         _newV[velocityV_real1D] = getVerticalSpeed(newPos);
     }
        
+}
+
+float newPressureFill;
+
+
+[numthreads(8, 8, 1)]
+void fillPressure(uint3 id: SV_DispatchThreadID){
+    _pressure[getCoordPressure(id.x, id.y, true)] = newPressureFill;
+}
+
+
+RWStructuredBuffer<float> _smoke;
+RWStructuredBuffer<float> _newSmoke;
+
+float getSmoke(float2 pos){
+    // float2 pos = index.xy - 0.5 - (uint2) index.xy; //center of the cell is (0,0)
+    uint2 topLeftCell = (uint2) (pos.xy - 0.5);
+
+    //top left cell center
+    float2 tl = topLeftCell + 0.5;
+
+    float2 vec = pos-tl;
+
+    float dx = vec.x;
+    float dy = vec.y;
+    float sx = dx - 1;
+    float sy = dy - 1;
+
+    float avg = sx * sy * _smoke[getCoordPressure(topLeftCell.x,     topLeftCell.y,     false)] + 
+                dx * sy * _smoke[getCoordPressure(topLeftCell.x + 1, topLeftCell.y,     false)] + 
+                sx * dy * _smoke[getCoordPressure(topLeftCell.x,     topLeftCell.y + 1, false)] + 
+                dx * dy * _smoke[getCoordPressure(topLeftCell.x + 1, topLeftCell.y + 1, false)];
+
+    return avg;
+}
+
+
+[numthreads(8, 8, 1)]
+void advectSmoke(uint3 id: SV_DispatchThreadID){
+    if(getType(id.x, id.y) != 0){
+
+        float velV = (_velocityV[getCoordV_Up(id.x, id.y, true)] + _velocityV[getCoordV_Down(id.x, id.y, true)]) * 0.5;
+        float velH = (_velocityH[getCoordH_Left(id.x, id.y, true)] + _velocityH[getCoordH_Right(id.x, id.y, true)]) * 0.5;
+
+        float2 cellCenter = float2(id.x + 0.5, id.y + 0.5) + 1; //+1 to go into true coordinates
+        float2 newPos = float2(cellCenter.x - dt * velV, cellCenter.y - dt * velH);
+
+        _newSmoke[getCoordPressure(id.x, id.y, true)] = getSmoke(newPos);
+    }
+
+}
+
+[numthreads(8, 8, 1)]
+void colorTexture(uint3 id: SV_DispatchThreadID){
+    //use smoke as color
+    float c = 0;
+
+    //smoke
+    // c = _smoke[getCoordPressure(id.x, id.y, true)];
+    // c = 1 - c;
+
+    //pressure
+    // c = _pressure[getCoordPressure(id.x, id.y, true)];
+
+    //velocityH
+    c = _velocityH[getCoordH_Left(id.x, id.y, true)] / 2.0;
+
+    //velocityV
+    // c = _velocityV[getCoordV_Up(id.x, id.y, true)] / 2.0;
+
+    //type
+    // c =  getType(id.x, id.y - 1);
+
+
+    // c = (float) id.y/resolutionWidth;
+    // int type_left   = getType(id.x, id.y - 1);
+    // _velocityH[getCoordH_Left (id.x, id.y, true)];
+    // if(getCoordH_Right(id.x, id.y, true) == 2*(128+3) + 1) {
+    //     _color[uint2(64,64+id.x)] = float4(1,1,1,0);
+    // }
+    // c = (float) getCoordH_Left(id.x, id.y, true).x / (resolutionWidth * resolutionHeight);
+
+
+    //  _color[id.xy] = float4(1, 1, 1, 0.0);
+    _color[id.xy] = float4(c, c, c, 0.0);
+    if(c < 0)
+        _color[id.xy] = float4(c, 1, c, 0.0);
+    if(c == 0)
+        _color[id.xy] = float4(1, c, c, 0.0);
+
+    
+    
 }

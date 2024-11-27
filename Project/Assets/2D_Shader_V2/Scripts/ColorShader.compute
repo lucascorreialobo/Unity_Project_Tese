@@ -1,0 +1,33 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> Result;
+// RWStructuredBuffer<float> cb;
+
+RWStructuredBuffer<float> _velocityV;
+RWStructuredBuffer<float> _velocityH;
+
+int _simResX; //height
+int _simResY; //width
+
+uint vUp(uint2 pos){return pos.x * (_simResY+2) + pos.y;}
+uint vDown(uint2 pos){return (pos.x + 1) * (_simResY+2) + pos.y;}
+uint hLeft(uint2 pos){return pos.x * (_simResY + 2 + 1) + pos.y;}
+uint hRight(uint2 pos){return pos.x * (_simResY + 2 + 1) + pos.y + 1;}
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    uint2 pos = id.xy;
+
+    // Result[id.xy] = float4(id.x & id.y, (id.x & 15)/15.0, (id.y & 15)/15.0, 0.0);
+    float c = 0;
+    // c = cb[id.x * 64 + id.y];
+
+    c = _velocityH[hLeft(pos)];
+
+
+    Result[id.xy] = float4(c, c, c, 1);
+}

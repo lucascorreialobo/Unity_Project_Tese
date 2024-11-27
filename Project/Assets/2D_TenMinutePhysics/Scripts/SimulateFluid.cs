@@ -118,6 +118,7 @@ public class SimulateFluid : MonoBehaviour
         for (int i = 0; i < fluid.numX; i++)
             for (int j = 0; j < fluid.numY; j++) {
                 float color = fluid.m[i * fluid.numY + j]; //color in range [0,1]
+                color = fluid.u[i * fluid.numY + j]; //color in range [0,1]
 
 
                 //int x = (int) Math.Floor(i * h);
