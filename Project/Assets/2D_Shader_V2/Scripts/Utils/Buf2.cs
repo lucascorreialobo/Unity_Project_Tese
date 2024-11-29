@@ -1,8 +1,8 @@
 using System.Runtime.InteropServices;
 using UnityEngine;
 
-// namespace Utils
-// {
+namespace Utils
+{
 
     public class Buf2<T> : IBuf2<T>
     {
@@ -143,4 +143,4 @@ using UnityEngine;
         }
     }
 
-// } // namespace LiquidShader
+} // namespace LiquidShader

@@ -4,6 +4,10 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
 
+namespace _2D_TenMinutePhysics {
+
+
+
 public class SimulateFluid : MonoBehaviour
 {
     GameObject[] visualGrid;
@@ -209,4 +213,5 @@ public class SimulateFluid : MonoBehaviour
     }
 
     
+}
 }

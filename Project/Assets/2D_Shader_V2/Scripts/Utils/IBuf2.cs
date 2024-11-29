@@ -1,7 +1,7 @@
 using UnityEngine;
 
-// namespace Utils
-// {
+namespace Utils
+{
 
     public interface IBuf2<T>
     {
@@ -13,4 +13,4 @@ using UnityEngine;
         ComputeBuffer GetComputeBuffer();
     }
 
-// } // namespace LiquidShader
+} // namespace LiquidShader

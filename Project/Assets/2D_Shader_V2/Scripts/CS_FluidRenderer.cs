@@ -4,7 +4,11 @@ using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-public class CS_FluidRenderer : MonoBehaviour
+
+namespace _2D_Shader_V2
+{
+
+    public class CS_FluidRenderer : MonoBehaviour
 {
     public ComputeShader projectionShader;
     public ComputeShader advectionShader;
@@ -15,7 +19,7 @@ public class CS_FluidRenderer : MonoBehaviour
 
     private ComputeBuffer cb;
 
-    public int resX = 8;
+    public int resX = 14;
     public int resY = 8;
 
     // Start is called before the first frame update
@@ -122,4 +126,5 @@ public class CS_FluidRenderer : MonoBehaviour
         state.ReleaseComputeBuffers();
         // cb.Release();
     }
+}
 }

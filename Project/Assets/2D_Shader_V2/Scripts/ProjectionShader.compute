@@ -16,14 +16,7 @@ uint2 _offset; //can have values: (0,0) (0,1) (1,0) (1,1). Used to avoid race co
 int _simResX; //height
 int _simResY; //width
 
-float getVelocityV(uint2 pos){
-    uint index1D = pos.x * _simResY + pos.y;
-    return _velocityV[index1D];
-}
-float getVelocityH(uint2 pos){
-    uint index1D = pos.x * _simResY + pos.y;
-    return _velocityH[index1D];
-}
+
 int getIsFluid(uint2 pos){
     uint index1D = pos.x * _simResY + pos.y;
     return _isFluid[index1D];

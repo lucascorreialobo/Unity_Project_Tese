@@ -7,6 +7,10 @@ using UnityEngine;
 using UnityEngine.PlayerLoop;
 using Vector2 = UnityEngine.Vector2;
 
+namespace test {
+
+
+
 public class cSharp_ShaderTest : MonoBehaviour
 {
 
@@ -120,4 +124,5 @@ public class cSharp_ShaderTest : MonoBehaviour
         shaderTest.Dispatch(kernel, renderTex.width / 64, renderTex.height, 1);
     }
 
+}
 }

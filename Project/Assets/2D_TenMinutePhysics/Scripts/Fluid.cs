@@ -4,6 +4,10 @@ using System.Collections.Generic;
 using System.Xml.Serialization;
 using UnityEngine;
 
+namespace _2D_TenMinutePhysics {
+
+
+
 public class Fluid {
 
     public float density;
@@ -263,4 +267,5 @@ public class Fluid {
         // this.advectSmoke(dt);
     }
 
+}
 }

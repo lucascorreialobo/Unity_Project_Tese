@@ -1,0 +1,83 @@
+using Unity.Collections;
+using Unity.VisualScripting;
+using UnityEngine;
+using UnityEngine.Scripting;
+using Utils;
+
+
+
+namespace _2D_Shader_V3 {
+
+
+
+
+public class RenderFHD : MonoBehaviour
+{
+    [Header("Constants")]
+    [SerializeField] private ComputeShader viewRenderer;
+    [SerializeField] private RenderTexture tex;
+    [SerializeField] private GameObject plane;
+
+    [SerializeField] private Vector2Int viewRes = new Vector2Int(500, 500);
+    [SerializeField] private Vector2Int simRes = new Vector2Int(50, 50);
+
+    // [SerializeField] private float[,] color;
+
+
+    private Buf2<float> property;
+
+
+    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    void Start()
+    {
+        ResizePlane();
+        
+
+
+        //Initialize property
+        property = new Buf2<float>(simRes.x, simRes.y);
+        for(int x = 0; x < simRes.x; x++){
+            for(int y = 0; y < simRes.y; y++){
+                property[x,y] = (x + y) % 2;
+                // property[x,y] = x < 20 ? 0 : 1;
+            }
+        }
+        property.ToGPU();
+
+
+        //Initialize texture
+        tex = new RenderTexture(viewRes.x, viewRes.y, 0) {
+            enableRandomWrite = true
+        };
+        tex.Create();
+
+        plane.GetComponent<Renderer>().material.mainTexture = tex;
+
+
+        int kernel = viewRenderer.FindKernel("CSMain");
+        viewRenderer.SetInts("viewRes", new int[]{viewRes.x, viewRes.y});
+        viewRenderer.SetInts("simRes", new int[]{simRes.x, simRes.y});
+        viewRenderer.SetBuffer(kernel, "_property", property.GetComputeBuffer());
+        viewRenderer.SetTexture(kernel, "Result", tex);
+
+        viewRenderer.Dispatch(kernel, (viewRes.x / 8) + 1, (viewRes.y / 8) + 1, 1);
+
+
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+
+    }
+
+    //Acording to simRes.
+    void ResizePlane(){
+        float simAspectRatio = (float)simRes.x / simRes.y;
+        if(simAspectRatio < 1)
+            plane.transform.localScale = new Vector3(simAspectRatio, 1, 1);
+        else
+            plane.transform.localScale = new Vector3(1, 1, 1 / simAspectRatio);
+    }
+}
+}
