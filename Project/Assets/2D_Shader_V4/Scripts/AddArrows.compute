@@ -1,0 +1,111 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> Result;
+RWStructuredBuffer<float> _verticalProperty;
+RWStructuredBuffer<float> _horizontalProperty;
+
+uint2 _simRes;
+
+
+
+//called once for each cell
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    if(id.x > _simRes.x || id.y > _simRes.y){
+        return;
+    }
+
+    int oneCellResolution = 100;
+    float arrowLength = 30;
+    int arrowHalfWidth = 5;
+    int arrowTipLength = 12;
+    int2 direction = int2(-1,0); //must be one of (1,0) (-1,0) (0,1) (0,-1)
+    
+    uint2 cellXY = id.xy;
+    uint cellXY_1D = cellXY.x * _simRes.y + cellXY.y;
+    
+    if(_verticalProperty[cellXY_1D] < 0.1 && _verticalProperty[cellXY_1D] > -0.1){
+        return;
+    }
+    arrowLength = _verticalProperty[cellXY_1D] * arrowLength;
+    
+    uint2 viewXY = (cellXY * oneCellResolution) + (oneCellResolution * 0.5);
+
+    Result[viewXY] = 1;
+    
+    
+    //find topLeftCorner
+    int2 rectangleStart = viewXY - (abs(direction.yx) * arrowHalfWidth);
+
+    int length = direction.x == 0 ? arrowHalfWidth*2 : arrowLength;
+    int height = direction.y == 0 ? arrowHalfWidth*2 : arrowLength;
+
+    if(direction.x == -1){
+        rectangleStart.x = rectangleStart.x - length;
+    }
+    if(direction.y == -1){
+        rectangleStart.y = rectangleStart.y - height;
+    }
+
+    for(int i = 0; i < length; i++){
+        for(int j = 0; j < height; j++){
+            Result[rectangleStart + int2(i,j)] = 1;
+        }
+    }
+
+    int2 arrowTip = rectangleStart + (int2(length, height) * ((direction + 1) / 2)) + (abs(direction.yx) * arrowHalfWidth) + (direction * arrowTipLength); 
+    
+    for(int i = 0; i < arrowTipLength; i++){
+        for(int j = -i; j < i; j++){
+            int x = i;
+            int y = j;
+
+            // int x = -i - 1;
+            // int y = j;
+
+            // x = i;
+            // y = j;
+
+            // x = j;
+            // y = -i - 1;
+
+            // x = j;
+            // y = i;
+
+            // int2 temp1 = int2(-i - 1, j);
+            // int2 temp2 = int2(i, j);
+
+            // int2 finalXY = int2(i, j);
+            // finalXY = direction
+            // finalXY = direction.y == 0 ? finalXY.xy : finalXY.yx;
+
+
+            if(direction.x == 1 || direction.y == 1){
+                x = -i - 1;
+            }
+            int2 finalXY = direction.y == 0 ? int2(x,y) : int2(y,x);
+
+
+
+            Result[arrowTip + finalXY] = 1;
+        }
+    }
+
+    //draw rectangle part of arrow
+    // for(int x = 0; x < arrowLength; x++)
+    //     for(int y = -arrowHalfWidth; y < arrowHalfWidth; y++)
+    //         Result[viewXY + int2(x,y)] = 1;
+        
+    //draw tip of arrow (triangle)
+    // for(int x = 0; x < arrowTipLength; x++){
+    //     for(int y = -x; y < x; y++){
+    //         Result[viewXY + int2(arrowTipLength - x - 1 + arrowLength, y)] = 1;
+    //     }
+    // }
+
+
+}

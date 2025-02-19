@@ -1,0 +1,39 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel Projection
+
+
+RWStructuredBuffer<float> _pressure;
+RWStructuredBuffer<int>   _type;        // 0 - wall  | 1 - fluid
+RWStructuredBuffer<float> _velocityV;
+RWStructuredBuffer<float> _velocityH;
+
+float2 _simRes;
+float2 _offset; //(0,0) (0,1) (1,0) (1,1)
+
+#include "positions.cginc"
+
+[numthreads(8,8,1)]
+void Projection (uint3 id : SV_DispatchThreadID)
+{
+    uint2 simXY = (id.xy * 2) + _offset;
+
+    //if is out of bounds skip
+    if(simXY.x <= 0 || simXY.x > _simRes.x || simXY.y <= 0 || simXY.y > _simRes.y) return;
+
+    uint simXY_1D = simXY.x * _simRes.y + simXY.y;
+
+    //if it is a wall skip
+    if(_type[simXY_1D] == 0) return;
+
+
+    int numFluidNeighbours = _type[LEFT(simXY_1D)] + _type[RIGHT(simXY_1D)] + _type[UP(simXY_1D)] + _type[DOWN(simXY_1D)];
+    if(numFluidNeighbours == 0) return;
+
+    float divergence = - _velocityH[simXY_1D] + _velocityH[RIGHT(simXY_1D)] - _velocityV[simXY_1D] + _velocityV[simXY_1D];
+    float avgDivergence = divergence / numFluidNeighbours;
+
+    _velocityH[      simXY_1D ] = _type[ LEFT(simXY_1D)] * avgDivergence;
+    _velocityH[RIGHT(simXY_1D)] = _type[RIGHT(simXY_1D)] * avgDivergence;
+    _velocityV[      simXY_1D ] = _type[   UP(simXY_1D)] * avgDivergence;
+    _velocityV[ DOWN(simXY_1D)] = _type[ DOWN(simXY_1D)] * avgDivergence;
+}

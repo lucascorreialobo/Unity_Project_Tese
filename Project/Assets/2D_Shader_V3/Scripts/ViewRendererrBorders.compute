@@ -1,0 +1,56 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> Result;
+RWStructuredBuffer<float> _property;
+RWStructuredBuffer<float> _propertyBordersV;
+RWStructuredBuffer<float> _propertyBordersH;
+
+uint2 _viewRes;
+uint2 _simRes;
+
+#include "positions.cginc"
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    uint2 viewXY = id.xy;
+    uint2 simXY = (viewXY * _simRes) / _viewRes;
+
+    uint simXY_1D = simXY.x * _simRes.y + simXY.y;
+
+    float c = _property[simXY_1D];
+
+    Result[id.xy] = float4(c, c, c, 0.0);
+
+
+    uint borderWidth = 1; //actual width is double because the width is summed from the two adjacent cells
+    uint2 bigPixelWidth = uint2(10, 10);
+    uint2 pixelInPixel = id.xy % bigPixelWidth;
+
+    if(pixelInPixel.x <= borderWidth){
+        c = _propertyBordersH[simXY_1D];
+        Result[id.xy] = float4(c, 1, 0, 0);
+    }
+    if(pixelInPixel.x >= bigPixelWidth.x - borderWidth){
+        c = _propertyBordersH[LEFT(simXY_1D)];
+        Result[id.xy] = float4(c, 1, 0, 0);
+    }
+
+
+    if(pixelInPixel.y <= borderWidth){
+        c = _propertyBordersV[simXY_1D];
+        Result[id.xy] = float4(c, 0, 1, 0);
+    }
+    if(pixelInPixel.y >= bigPixelWidth.y - borderWidth){
+        c = _propertyBordersV[UP(simXY_1D)];
+        Result[id.xy] = float4(c, 0, 1, 0);
+    }
+
+
+    // if(pixelInPixel.x < 2 || pixelInPixel.x > 8 || pixelInPixel.y < 2 || pixelInPixel.y > 8){
+    //     Result[id.xy] = float4(0.5, 0, 0, 0.0);
+    // }
+}
