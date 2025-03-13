@@ -1,0 +1,74 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+//RWStructuredBuffer<float> _pressure;
+RWStructuredBuffer<float> _type; // 0 - wall  | 1 - fluid
+RWStructuredBuffer<float> _velocityV;
+RWStructuredBuffer<float> _velocityH;
+
+//RWStructuredBuffer<float> _newVelocityH;
+//RWStructuredBuffer<float> _newVelocityV;
+
+
+RWStructuredBuffer<float> _advectedProperty;
+RWStructuredBuffer<float> _newAdvectedProperty;
+
+uint2 _cell;
+
+
+uint2 _simRes;
+float _timeStep;
+
+
+#include "positions.cginc"
+#include "Interpolation.cginc"
+
+void advectProperty(uint2 cell, int simXY_1D)
+{
+    //TODO: check boundaries y != 0
+    //float cellVelocityHInterpolated = (_velocityH[simXY_1D] + _velocityH[RIGHT(simXY_1D)] + _velocityH[DOWN(simXY_1D)] + _velocityH[DOWN(RIGHT(simXY_1D))]) / 4;
+    //float2 velocityXY = float2(cellVelocityHInterpolated, _velocityV[simXY_1D]);
+    float2 velocityXY = velocityXY_of_cell_center(_velocityV, _velocityH, cell, simXY_1D);
+
+    float2 backtrackCell = cell - (velocityXY * _timeStep);
+    
+    //TODO: maybe check boundaries
+    uint2 backtrackCell_I = (uint2) backtrackCell; //Integer part of srcPos
+    float2 backtrackCell_D = backtrackCell - backtrackCell_I; //Decimal part of srcPos
+
+    uint backtrackCell_I_1D = backtrackCell_I.x * _simRes.y + backtrackCell_I.y;
+    uint bt_1D = backtrackCell_I_1D; //just a smaller name
+    
+    //float newInterpolatedVelocityV =
+    //(_velocityV[bt_1D] * (1 - backtrackCell_D.x) + _velocityV[RIGHT(bt_1D)] * (backtrackCell_D.x)) * (1 - backtrackCell_D.y) +
+    //(_velocityV[UP(bt_1D)] * (1 - backtrackCell_D.x) + _velocityV[UP(RIGHT(bt_1D))] * (backtrackCell_D.x)) * (backtrackCell_D.y);
+
+    float newInterpolatedProperty = interpolateProperty(_advectedProperty, backtrackCell_I, backtrackCell_D);
+
+    _newAdvectedProperty[simXY_1D] = newInterpolatedProperty;
+}
+
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    uint2 cell = _cell;
+    
+    // TODO: insert actual code here!
+    if (cell.x < 0 || cell.x >= _simRes.x || cell.y < 0 || cell.y >= _simRes.y)
+        return;
+    
+    int simXY_1D = cell.x * _simRes.y + cell.y;
+    
+    //if it is a wall skip
+    if (_type[simXY_1D] == 0)
+        return;
+    
+    advectProperty(cell, simXY_1D);
+    
+    //if(_type[UP(simXY_1D)] )
+    //    advectVelocityV(cell, simXY_1D);
+    //if(_type[LEFT(simXY_1D)])
+    //    advectVelocityH(cell, simXY_1D);
+
+}

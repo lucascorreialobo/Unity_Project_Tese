@@ -1,0 +1,55 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> Result;
+RWStructuredBuffer<int> _isObject;  //if bit n == 0 of the int => cell is part of objectN
+
+int _numberOfObjects;
+
+uint2 _simRes;
+
+// Define an array of colors (RGBA format)
+static const float4 colorArray[5] =
+{
+    float4(1.0, 0.0, 0.0, 1.0), // Red
+    float4(0.0, 1.0, 0.0, 1.0), // Green
+    float4(0.0, 0.0, 1.0, 1.0), // Blue
+    float4(1.0, 1.0, 0.0, 1.0), // Yellow
+    float4(1.0, 0.0, 1.0, 1.0)  // Magenta
+};
+
+
+
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    if (id.x > _simRes.x || id.y > _simRes.y)
+    {
+        return;
+    }
+    
+    uint2 simXY = id.xy;
+    uint simXY_1D = simXY.x * _simRes.y + simXY.y;
+    
+    int objects = _isObject[simXY_1D];
+    
+    //int numberOfObjects = 5;
+    
+    for (int i = 0; i < _numberOfObjects; i++)
+    {
+        int isFluid = (objects >> i) & 1;
+        
+        if (isFluid == 0)
+        {
+            Result[id.xy] = colorArray[i];
+            return;
+        }
+        
+    }
+    
+    Result[id.xy] = float4(1, 1, 1, 0);
+
+}

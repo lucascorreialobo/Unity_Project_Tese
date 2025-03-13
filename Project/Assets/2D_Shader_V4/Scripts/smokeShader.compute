@@ -4,25 +4,36 @@
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
 RWTexture2D<float4> Result;
-RWStructuredBuffer<float> _property;
+RWStructuredBuffer<float> _smokePressure;
+RWStructuredBuffer<float> _type;
 
 
-uint2 _viewRes;
+//uint2 _viewRes;
 uint2 _simRes;
 
 
 [numthreads(8,8,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
 {
-    if(id.x > _viewRes.x || id.y > _viewRes.y){
+    if (id.x > _simRes.x || id.y > _simRes.y)
+    {
         return;
     }
-    uint2 viewXY = id.xy;
-    uint2 simXY = viewXY * _simRes / _viewRes; //rounds down when doing whole division
-
+    
+    uint2 simXY = id.xy;
+    
     uint simXY_1D = simXY.x * _simRes.y + simXY.y;
 
-    float c = _property[simXY_1D];
-
+    float c = 0;
+    
+    if (_type[simXY_1D] != 0)
+    {
+        c = _smokePressure[simXY_1D];
+        c = 1 - c;
+        c *= 0.9;
+    }
+        
+    
+    
     Result[id.xy] = float4(c, c, c, 0.0);
 }

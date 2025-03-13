@@ -9,7 +9,62 @@ RWStructuredBuffer<float> _horizontalProperty;
 
 uint2 _simRes;
 
+static const int oneCellResolution = 100;
+static const int arrowHalfWidth = 5;
+static const int arrowTipLength = 12;
+static const float baseArrowLength = 30;
+static const float4 arrowColor = float4(0.1, 0.1, 0.6, 0);
 
+void drawArrow(float2 arrowOrigin, int2 direction, int arrowLength)
+{
+    
+    //Result[viewXY] = 1;
+    
+    
+    //find topLeftCorner
+    int2 rectangleStart = arrowOrigin - (abs(direction.yx) * arrowHalfWidth);
+
+    int length = direction.x == 0 ? arrowHalfWidth * 2 : arrowLength;
+    int height = direction.y == 0 ? arrowHalfWidth * 2 : arrowLength;
+
+    if (direction.x == -1)
+    {
+        rectangleStart.x = rectangleStart.x - length;
+    }
+    if (direction.y == -1)
+    {
+        rectangleStart.y = rectangleStart.y - height;
+    }
+
+    for (int i = 0; i < length; i++)
+    {
+        for (int j = 0; j < height; j++)
+        {
+            Result[rectangleStart + int2(i, j)] = arrowColor;
+        }
+    }
+
+    int2 arrowTip = rectangleStart + (int2(length, height) * ((direction + 1) / 2)) + (abs(direction.yx) * arrowHalfWidth) + (direction * arrowTipLength);
+    
+    for (int i = 0; i < arrowTipLength; i++)
+    {
+        for (int j = -i; j < i; j++)
+        {
+            int x = i;
+            int y = j;
+
+            if (direction.x == 1 || direction.y == 1)
+            {
+                x = -i - 1;
+            }
+            int2 finalXY = direction.y == 0 ? int2(x, y) : int2(y, x);
+            
+            Result[arrowTip + finalXY] = arrowColor;
+        }
+    }
+    
+    return;
+}
 
 //called once for each cell
 [numthreads(8,8,1)]
@@ -18,94 +73,47 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     if(id.x > _simRes.x || id.y > _simRes.y){
         return;
     }
-
-    int oneCellResolution = 100;
-    float arrowLength = 30;
-    int arrowHalfWidth = 5;
-    int arrowTipLength = 12;
-    int2 direction = int2(-1,0); //must be one of (1,0) (-1,0) (0,1) (0,-1)
     
     uint2 cellXY = id.xy;
     uint cellXY_1D = cellXY.x * _simRes.y + cellXY.y;
+
     
-    if(_verticalProperty[cellXY_1D] < 0.1 && _verticalProperty[cellXY_1D] > -0.1){
-        return;
-    }
-    arrowLength = _verticalProperty[cellXY_1D] * arrowLength;
+    //vertical arrow
+    int2 direction = int2(0,1); //must be one of (1,0) (-1,0) (0,1) (0,-1)
+    uint2 viewXY = (cellXY * oneCellResolution) + int2(oneCellResolution * 0.5, 0);
     
-    uint2 viewXY = (cellXY * oneCellResolution) + (oneCellResolution * 0.5);
-
-    Result[viewXY] = 1;
-    
-    
-    //find topLeftCorner
-    int2 rectangleStart = viewXY - (abs(direction.yx) * arrowHalfWidth);
-
-    int length = direction.x == 0 ? arrowHalfWidth*2 : arrowLength;
-    int height = direction.y == 0 ? arrowHalfWidth*2 : arrowLength;
-
-    if(direction.x == -1){
-        rectangleStart.x = rectangleStart.x - length;
-    }
-    if(direction.y == -1){
-        rectangleStart.y = rectangleStart.y - height;
-    }
-
-    for(int i = 0; i < length; i++){
-        for(int j = 0; j < height; j++){
-            Result[rectangleStart + int2(i,j)] = 1;
-        }
-    }
-
-    int2 arrowTip = rectangleStart + (int2(length, height) * ((direction + 1) / 2)) + (abs(direction.yx) * arrowHalfWidth) + (direction * arrowTipLength); 
-    
-    for(int i = 0; i < arrowTipLength; i++){
-        for(int j = -i; j < i; j++){
-            int x = i;
-            int y = j;
-
-            // int x = -i - 1;
-            // int y = j;
-
-            // x = i;
-            // y = j;
-
-            // x = j;
-            // y = -i - 1;
-
-            // x = j;
-            // y = i;
-
-            // int2 temp1 = int2(-i - 1, j);
-            // int2 temp2 = int2(i, j);
-
-            // int2 finalXY = int2(i, j);
-            // finalXY = direction
-            // finalXY = direction.y == 0 ? finalXY.xy : finalXY.yx;
-
-
-            if(direction.x == 1 || direction.y == 1){
-                x = -i - 1;
-            }
-            int2 finalXY = direction.y == 0 ? int2(x,y) : int2(y,x);
-
-
-
-            Result[arrowTip + finalXY] = 1;
-        }
-    }
-
-    //draw rectangle part of arrow
-    // for(int x = 0; x < arrowLength; x++)
-    //     for(int y = -arrowHalfWidth; y < arrowHalfWidth; y++)
-    //         Result[viewXY + int2(x,y)] = 1;
+    if (abs(_verticalProperty[cellXY_1D]) >= 0.1)
+    {
         
-    //draw tip of arrow (triangle)
-    // for(int x = 0; x < arrowTipLength; x++){
-    //     for(int y = -x; y < x; y++){
-    //         Result[viewXY + int2(arrowTipLength - x - 1 + arrowLength, y)] = 1;
-    //     }
-    // }
-
+        float arrowLength = _verticalProperty[cellXY_1D] * baseArrowLength;
+        if (arrowLength < 0)
+        {
+            arrowLength = abs(arrowLength);
+            direction = direction * -1;
+        }
+    
+        drawArrow(viewXY, direction, arrowLength);
+    }
+    
+    //hprozontal arrow
+    direction = int2(1, 0);
+    
+    viewXY = (cellXY * oneCellResolution) + int2(0, oneCellResolution * 0.5);
+    
+    
+    if (_horizontalProperty[cellXY_1D] >= 0.1 || _horizontalProperty[cellXY_1D] <= -0.1)
+    {
+        float arrowLength = _horizontalProperty[cellXY_1D] * baseArrowLength;
+        if (arrowLength < 0)
+        {
+            arrowLength = abs(arrowLength);
+            direction = direction * -1;
+        }
+        
+        drawArrow(viewXY, direction, arrowLength);
+    }
+    
 
 }
+
+

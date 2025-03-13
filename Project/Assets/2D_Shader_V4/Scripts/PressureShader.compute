@@ -1,0 +1,76 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> Result;
+RWStructuredBuffer<float> _pressure;
+RWStructuredBuffer<float> _type;
+
+//uint2 _viewRes;
+uint2 _simRes;
+
+
+
+float4 getSciColor(float val, float minVal, float maxVal)
+{
+    val = min(max(val, minVal), maxVal - 0.0001);
+    float d = maxVal - minVal;
+    val = d == 0.0 ? 0.5 : (val - minVal) / d;
+    float m = 0.25;
+    float num = floor(val / m);
+    float s = (val - num * m) / m;
+    float r, g, b;
+    
+    switch (num)
+    {
+        case 0:
+            r = 0.0;
+            g = s;
+            b = 1.0;
+            break;
+        case 1:
+            r = 0.0;
+            g = 1.0;
+            b = 1.0 - s;
+            break;
+        case 2:
+            r = s;
+            g = 1.0;
+            b = 0.0;
+            break;
+        case 3:
+            r = 1.0;
+            g = 1.0 - s;
+            b = 0.0;
+            break;
+    }
+    
+    return float4(r, g, b, 0);
+
+}
+
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    if (id.x > _simRes.x || id.y > _simRes.y)
+    {
+        return;
+    }
+  
+    uint2 simXY = id.xy;
+    //uint2 simXY = viewXY * _simRes / _viewRes; //rounds down when doing whole division
+
+    uint simXY_1D = simXY.x * _simRes.y + simXY.y;
+    
+    float4 color = float4(0, 0, 0, 0);
+    
+    if (_type[simXY_1D] != 0)
+    {
+        int value = _pressure[simXY_1D];
+        color = getSciColor(value, -200.0, 200.0);
+    }
+    
+    Result[id.xy] = color;
+}

@@ -4,8 +4,8 @@
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
 RWTexture2D<float4> Result;
-RWStructuredBuffer<float> _property;
-
+RWTexture2D<float4> _color;
+//RWStructuredBuffer<float3> _property;
 
 uint2 _viewRes;
 uint2 _simRes;
@@ -20,9 +20,14 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     uint2 viewXY = id.xy;
     uint2 simXY = viewXY * _simRes / _viewRes; //rounds down when doing whole division
 
-    uint simXY_1D = simXY.x * _simRes.y + simXY.y;
+    //uint simXY_1D = simXY.x * _simRes.y + simXY.y;
 
-    float c = _property[simXY_1D];
+    //float3 c = _color[simXY_1D];
 
-    Result[id.xy] = float4(c, c, c, 0.0);
+    //Result[id.xy] = float4(c.x, c.y, c.z, 0.0);
+    
+    Result[id.xy] = _color[simXY];
+    
+   
+    
 }

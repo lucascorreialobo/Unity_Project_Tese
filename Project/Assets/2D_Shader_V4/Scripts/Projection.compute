@@ -1,0 +1,49 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+RWStructuredBuffer<float> _pressure;
+RWStructuredBuffer<float> _type; // 0 - wall  | 1 - fluid
+RWStructuredBuffer<float> _velocityV;
+RWStructuredBuffer<float> _velocityH;
+
+uint2 _simRes;
+uint2 _offset; // (0,0) (0,1) (1,0) (1,1)
+
+#include "positions.cginc"
+
+[numthreads(8,8,1)]
+void CSMain(uint3 id : SV_DispatchThreadID)
+{
+    float overrelaxation = 1.5; //must be  >= 1 && < 2. higher values lead to faster convergence
+    int2 cell = (id.xy * 2) + _offset;
+    
+    //if is out of bounds skip
+    if (cell.x < 0 || cell.x >= _simRes.x || cell.y < 0 || cell.y >= _simRes.y)
+        return;
+    
+    int rho = 997;
+    int simXY_1D = cell.x * _simRes.y + cell.y;
+    
+    //if it is a wall skip
+    if (_type[simXY_1D] == 0)
+        return;
+    
+    int numFluidNeighbours = _type[LEFT(simXY_1D)] + _type[RIGHT(simXY_1D)] + _type[UP(simXY_1D)] + _type[DOWN(simXY_1D)];
+    if (numFluidNeighbours == 0)
+        return;
+
+    float divergence = -_velocityH[simXY_1D] + _velocityH[RIGHT(simXY_1D)] - _velocityV[simXY_1D] + _velocityV[UP(simXY_1D)];
+    divergence *= overrelaxation;
+    float avgDivergence = divergence / numFluidNeighbours;
+    
+    _pressure[simXY_1D] -= avgDivergence * rho;
+
+    _velocityH[      simXY_1D ] += _type[ LEFT(simXY_1D)] * avgDivergence;
+    _velocityH[RIGHT(simXY_1D)] -= _type[RIGHT(simXY_1D)] * avgDivergence;
+    _velocityV[      simXY_1D ] += _type[ DOWN(simXY_1D)] * avgDivergence;
+    _velocityV[   UP(simXY_1D)] -= _type[   UP(simXY_1D)] * avgDivergence;
+     
+    
+    
+    
+}

@@ -1,0 +1,86 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> Result;
+RWStructuredBuffer<float> _velocityH;
+RWStructuredBuffer<float> _velocityV;
+RWStructuredBuffer<float> _type;
+
+
+//uint2 _viewRes;
+uint2 _simRes;
+
+#include "positions.cginc"
+#include "Interpolation.cginc"
+
+
+// Helper function to convert HSV to RGB
+float4 HSVtoRGB(float3 hsv)
+{
+    float h = hsv.x; // Hue [0, 1]
+    float s = hsv.y; // Saturation [0, 1]
+    float v = hsv.z; // Value [0, 1]
+
+    float c = v * s; // Chroma
+    float x = c * (1.0 - abs(fmod(h * 6.0, 2.0) - 1.0));
+    float m = v - c;
+
+    float4 rgb;
+
+    if (h < 1.0 / 6.0)
+        rgb = float4(c, x, 0, 0);
+    else if (h < 2.0 / 6.0)
+        rgb = float4(x, c, 0, 0);
+    else if (h < 3.0 / 6.0)
+        rgb = float4(0, c, x, 0);
+    else if (h < 4.0 / 6.0)
+        rgb = float4(0, x, c, 0);
+    else if (h < 5.0 / 6.0)
+        rgb = float4(x, 0, c, 0);
+    else
+        rgb = float4(c, 0, x, 0);
+
+    return rgb + m;
+}
+
+// Function to map a float2 to a color on the color wheel
+float4 ColorWheel(float2 uv)
+{
+    // Calculate angle in radians based on the float2 vector
+    float angle = atan2(uv.y, uv.x); // Range: -PI to PI
+    float hue = (angle / (2.0 * 3.14159265359)) + 0.5; // Normalize to [0, 1]
+
+    // Convert hue to RGB (using HSV color model with Saturation = 1, Value = 1)
+    float4 color = HSVtoRGB(float3(hue, 1.0, 1.0));
+
+    return color * length(uv) * 100;
+}
+
+
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    if (id.x > _simRes.x || id.y > _simRes.y)
+    {
+        return;
+    }
+  
+    uint2 simXY = id.xy;
+    //uint2 simXY = viewXY * _simRes / _viewRes; //rounds down when doing whole division
+
+    uint simXY_1D = simXY.x * _simRes.y + simXY.y;
+    
+    float4 color = float4(0, 0, 0, 0);
+    
+    float2 velocity = velocityXY_of_cell_center(_velocityV, _velocityH, simXY, simXY_1D);
+    
+    if (_type[simXY_1D] != 0)
+    {
+        color = ColorWheel(velocity);
+    }
+    
+    Result[id.xy] = color;
+}

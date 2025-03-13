@@ -349,6 +349,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   viewRenderer: {fileID: 7200000, guid: 531f0bbcd2d45fe489d3c3d968999d7d, type: 3}
   addArrowShader: {fileID: 7200000, guid: fc1b58dff578e0945974b712d918fe52, type: 3}
+  individualProjectionShader: {fileID: 7200000, guid: 197cb8f8b72a62b4a9dac757b86a4508, type: 3}
+  individualAdvectionShader: {fileID: 7200000, guid: cb02b0954d42bb440b70eee1cb986445, type: 3}
+  individualAdvectionPropertyShader: {fileID: 7200000, guid: fabb7afd0c8251e44a90c623d2c19db7, type: 3}
+  projectionShader: {fileID: 7200000, guid: 3408c9c98a65e3f4e8c2dbba6169f655, type: 3}
+  advectionVelocitiesShader: {fileID: 7200000, guid: 1a3b46a045e80ad40b25cfbb9028fbb8, type: 3}
+  advectionPropertyShader: {fileID: 7200000, guid: fc1ce4661c406494cb3693d6935ed900, type: 3}
+  clearPressureShader: {fileID: 7200000, guid: d2c502fabef1027469e0f05e349b9cf4, type: 3}
+  copyFloatsBufferShader: {fileID: 7200000, guid: 4039769f25a1d984785f4cac50507822, type: 3}
+  findMinMaxValueShader: {fileID: 7200000, guid: 23482f702d82bff4c9c2a722720d40a1, type: 3}
+  mergeObjectsShader: {fileID: 7200000, guid: b259eee2c07e7414b8614f437b540181, type: 3}
+  pressureShader: {fileID: 7200000, guid: b289ecafb9e0b4c428e66cccf07ad829, type: 3}
+  typeShader: {fileID: 7200000, guid: 484f28c3ab3b8bd4e971ef694a3f5ddb, type: 3}
+  objectShader: {fileID: 7200000, guid: 287d795ae8265bc4582b1f8a39de940c, type: 3}
+  smokeShader: {fileID: 7200000, guid: 93f514c4964e4ab479742a52473e90ee, type: 3}
+  velocityShader: {fileID: 7200000, guid: 5026289eed0c12547a656861c5f9bfb9, type: 3}
+  upscalingShader: {fileID: 7200000, guid: d3abf880241259741943958079756845, type: 3}
+  addBordersShader: {fileID: 7200000, guid: b324130ffa8608241acd11b8a2ad1e81, type: 3}
   simResolution:
     x: 10
     y: 10
@@ -356,6 +373,8 @@ MonoBehaviour:
   activeClickType: 0
   activeViewType: 0
   showArrows: 0
+  showBorders: 0
+  simulationPlaying: 0
 --- !u!1 &1439644579
 GameObject:
   m_ObjectHideFlags: 0

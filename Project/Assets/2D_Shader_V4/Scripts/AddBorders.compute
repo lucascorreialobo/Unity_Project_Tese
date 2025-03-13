@@ -1,0 +1,25 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> Result;
+
+uint2 _simRes;
+uint2 _viewRes;
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    // TODO: insert actual code here!
+    uint2 pixelsPerCell = _viewRes / _simRes;
+    uint2 inCellXY = id.xy % pixelsPerCell;
+    uint thickness = 10 / 2; //  x/2 because it's on both sides
+    
+    if (inCellXY.x <= thickness - 1 || inCellXY.y <= thickness - 1 || inCellXY.x >= pixelsPerCell.x - thickness || inCellXY.y >= pixelsPerCell.y - thickness)
+    {
+        Result[id.xy] = float4(0, 0, 1, 0);
+
+    }
+
+}

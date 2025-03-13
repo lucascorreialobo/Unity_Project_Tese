@@ -10,6 +10,7 @@ public class PlaneClickCoordinates : MonoBehaviour
 {
     private GameObject planeObject; // Assign the plane GameObject in the inspector
     [SerializeField] private bool debug = false;
+    private bool repeatClick;
     private MainSimulationRunner simRunner;
 
     void OnEnable(){
@@ -19,7 +20,7 @@ public class PlaneClickCoordinates : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetMouseButtonDown(0)) // Left mouse button click
+        if (Input.GetMouseButton(0)) // Left mouse button click
         {
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
             RaycastHit hit;
@@ -36,9 +37,12 @@ public class PlaneClickCoordinates : MonoBehaviour
                         Debug.Log(texturePoint);
                     }
 
-                    simRunner.Click(texturePoint);
+                    simRunner.Click(texturePoint, repeatClick);
                 }
             }
+            repeatClick = true;
+        } else {
+            repeatClick = false;
         }
     }
 }

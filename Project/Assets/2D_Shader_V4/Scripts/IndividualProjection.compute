@@ -1,0 +1,49 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+RWStructuredBuffer<float> _pressure;
+RWStructuredBuffer<float> _type; // 0 - wall  | 1 - fluid
+RWStructuredBuffer<float> _velocityV;
+RWStructuredBuffer<float> _velocityH;
+
+uint2 _simRes;
+
+int2 _cell; //cell to project
+
+#include "positions.cginc"
+
+/*
+   for pressure calculation:
+        Grid spacing(cell length) h = 0.01m
+        time step t = 0.01s
+        density (water) rho = 997 Kg/m3
+    
+    formula: += avgDivergence * density * h / t
+*/
+
+
+[numthreads(1,1,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    
+    int rho = 997;
+    int simXY_1D = _cell.x * _simRes.y + _cell.y;
+    
+    if (_type[simXY_1D] == 0)
+        return;
+    
+    int numFluidNeighbours = _type[LEFT(simXY_1D)] + _type[RIGHT(simXY_1D)] + _type[UP(simXY_1D)] + _type[DOWN(simXY_1D)];
+    if (numFluidNeighbours == 0)
+        return;
+
+    float divergence = -_velocityH[simXY_1D] + _velocityH[RIGHT(simXY_1D)] - _velocityV[simXY_1D] + _velocityV[UP(simXY_1D)];
+    float avgDivergence = divergence / numFluidNeighbours;
+    
+    _pressure[simXY_1D] -= avgDivergence * rho;
+
+    _velocityH[simXY_1D         ] += _type[ LEFT(simXY_1D)] * avgDivergence;
+    _velocityH[RIGHT(simXY_1D)  ] -= _type[RIGHT(simXY_1D)] * avgDivergence;
+    _velocityV[simXY_1D         ] += _type[ DOWN(simXY_1D)] * avgDivergence;
+    _velocityV[UP(simXY_1D)     ] -= _type[   UP(simXY_1D)] * avgDivergence;
+     
+}

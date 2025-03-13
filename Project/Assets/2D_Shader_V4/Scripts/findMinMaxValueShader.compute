@@ -1,0 +1,99 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+#pragma kernel nPlusIterations
+
+
+RWStructuredBuffer<float> _property;
+
+// Output buffer to store the result [min0, max0, min1, max1, ...]
+RWStructuredBuffer<float> _resultBuffer;
+RWStructuredBuffer<float> _resultBuffer2;
+
+int _length;
+
+// Thread group size
+#define THREADS_PER_GROUP 1024
+groupshared float sharedMin[THREADS_PER_GROUP];
+groupshared float sharedMax[THREADS_PER_GROUP];
+
+[numthreads(THREADS_PER_GROUP, 1, 1)]
+void CSMain(uint3 groupID : SV_GroupID, uint3 tid : SV_GroupThreadID, uint3 id : SV_DispatchThreadID)
+{
+
+    uint idx = id.x; // Global thread index
+
+    // Initialize shared memory with data from the input buffer
+    if (idx < _length)  // Ensure we're within bounds of the input buffer
+    {
+        sharedMin[tid.x] = _property[idx];
+        sharedMax[tid.x] = _property[idx];
+    }
+    else
+    {
+        sharedMin[tid.x] = 1e10; // Use a large value for min initialization
+        sharedMax[tid.x] = -1e10; // Use a small value for max initialization
+    }
+
+    GroupMemoryBarrierWithGroupSync();
+
+    // Perform parallel reduction
+    for (uint stride = THREADS_PER_GROUP / 2; stride > 0; stride /= 2)
+    {
+        if (tid.x < stride)
+        {
+            sharedMin[tid.x] = min(sharedMin[tid.x], sharedMin[tid.x + stride]);
+            sharedMax[tid.x] = max(sharedMax[tid.x], sharedMax[tid.x + stride]);
+        }
+        GroupMemoryBarrierWithGroupSync();
+    }
+
+    // Write results to the output buffer from thread 0
+    if (tid.x == 0)
+    {
+        _resultBuffer[groupID.x * 2] = sharedMin[0];
+        _resultBuffer[groupID.x * 2 + 1] = sharedMax[0];
+    }
+}
+
+
+[numthreads(THREADS_PER_GROUP, 1, 1)]
+void nPlusIterations(uint3 groupID : SV_GroupID, uint3 tid : SV_GroupThreadID, uint3 id : SV_DispatchThreadID)
+{
+
+    uint idx = id.x; // Global thread index
+
+    // Initialize shared memory with data from the input buffer
+    if (idx < _length)  // Ensure we're within bounds of the input buffer
+    {
+        sharedMin[tid.x] = _property[2 * idx];
+        sharedMax[tid.x] = _property[2 * idx + 1];
+    }
+    else
+    {
+        sharedMin[tid.x] = 1e10; // Use a large value for min initialization
+        sharedMax[tid.x] = -1e10; // Use a small value for max initialization
+    }
+
+    GroupMemoryBarrierWithGroupSync();
+
+    // Perform parallel reduction
+    for (uint stride = THREADS_PER_GROUP / 2; stride > 0; stride /= 2)
+    {
+        if (tid.x < stride)
+        {
+            sharedMin[tid.x] = min(sharedMin[tid.x], sharedMin[tid.x + stride]);
+            sharedMax[tid.x] = max(sharedMax[tid.x], sharedMax[tid.x + stride]);
+        }
+        GroupMemoryBarrierWithGroupSync();
+    }
+    
+    // Write results to the output buffer from thread 0
+    if (tid.x == 0)
+    {
+        _resultBuffer2[groupID.x * 2] = sharedMin[0];
+        _resultBuffer2[groupID.x * 2 + 1] = sharedMax[0];
+        //_resultBuffer2[groupID.x * 2] = 100;
+        //_resultBuffer2[groupID.x * 2 + 1] = -10;
+    }
+}
+

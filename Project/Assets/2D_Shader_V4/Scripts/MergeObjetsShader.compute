@@ -1,0 +1,37 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWStructuredBuffer<int> _objects;
+RWStructuredBuffer<float> _walls; // 0 - wall | 1 - fluid
+RWStructuredBuffer<float> _merged; // 0 - wall/object | 1 - fluid
+
+int _numberOfObjects;
+
+int isObjectN(int cell, int bitIndex)
+{
+    uint bit = (_objects[cell] >> bitIndex) & 1;
+    
+    return bit;
+}
+
+[numthreads(64,1,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    
+    //int numberOfObjects = 5;
+    for(int i = 0; i < _numberOfObjects; i++)
+    {
+        int isFluid = isObjectN(id.x, i);
+        if (isFluid == 0 || _walls[id.x] == 0)
+        {
+            _merged[id.x] = 0;
+            return;
+        }
+    }
+    
+    //if(_objects[id.x] != -1)
+    //    _merged[id.x] = 0;
+    
+}
