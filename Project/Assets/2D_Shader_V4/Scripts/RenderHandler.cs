@@ -90,7 +90,7 @@ namespace _2D_Shader_V4 {
         }
 
         public void ChangeActivePropertyShader(ViewType type){
-            Debug.Log("changed property shader");
+            //Debug.Log("changed property shader");
             switch(type){
                 case ViewType.PRESSURE: 
                     activePropertyShader = pressureShader;
@@ -133,7 +133,7 @@ namespace _2D_Shader_V4 {
             int kernel = pressureShader.FindKernel("CSMain");
             pressureShader.SetTexture(kernel, "Result", colorTexture);
             pressureShader.SetBuffer(kernel, "_pressure", simState.pressure.GetComputeBuffer());
-            pressureShader.SetBuffer(kernel, "_type", simState.wall.GetComputeBuffer());
+            pressureShader.SetBuffer(kernel, "_type", simState.objectsMerged.GetComputeBuffer());
             pressureShader.SetInts("_simRes", new int[] {simState.simRes.x, simState.simRes.y});
 
             //pressureShader.Dispatch(kernel, (simState.simRes.x / 8) + 1, (simState.simRes.y / 8) + 1, 1);
@@ -163,7 +163,7 @@ namespace _2D_Shader_V4 {
             int kernel = smokeShader.FindKernel("CSMain");
             smokeShader.SetTexture(kernel, "Result", colorTexture);
             smokeShader.SetBuffer(kernel, "_smokePressure", simState.smoke.GetComputeBuffer());
-            smokeShader.SetBuffer(kernel, "_type", simState.wall.GetComputeBuffer());
+            smokeShader.SetBuffer(kernel, "_type", simState.objectsMerged.GetComputeBuffer());
             smokeShader.SetInts("_simRes", new int[] { simState.simRes.x, simState.simRes.y });
 
             //smokeShader.Dispatch(kernel, (simState.simRes.x / 8) + 1, (simState.simRes.y / 8) + 1, 1);
@@ -174,7 +174,7 @@ namespace _2D_Shader_V4 {
             velocityShader.SetTexture(kernel, "Result", colorTexture);
             velocityShader.SetBuffer(kernel, "_velocityH", simState.velocityH.GetComputeBuffer());
             velocityShader.SetBuffer(kernel, "_velocityV", simState.velocityV.GetComputeBuffer());
-            velocityShader.SetBuffer(kernel, "_type", simState.wall.GetComputeBuffer());
+            velocityShader.SetBuffer(kernel, "_type", simState.objectsMerged.GetComputeBuffer());
             velocityShader.SetInts("_simRes", new int[] { simState.simRes.x, simState.simRes.y });
 
             //velocityShader.Dispatch(kernel, (simState.simRes.x / 8) + 1, (simState.simRes.y / 8) + 1, 1);

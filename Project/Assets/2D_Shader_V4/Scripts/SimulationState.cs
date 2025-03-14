@@ -96,6 +96,18 @@ public class SimulationState
 
     public void addObject(int objectIndex, int2 gridCoord) {
         objectsSeperated.FromGPU();
+        velocityV.FromGPU();
+        velocityH.FromGPU();
+        
+        addObjectNoGPU(objectIndex, gridCoord);
+
+
+        objectsSeperated.ToGPU();
+        velocityV.ToGPU();
+        velocityH.ToGPU();
+    }
+    
+    public void addObjectNoGPU(int objectIndex, int2 gridCoord) {
         int obj = objectsSeperated[gridCoord.x, gridCoord.y];
         int isFluid = (obj >> objectIndex) & 1;
 
@@ -104,8 +116,10 @@ public class SimulationState
         else
             objectsSeperated[gridCoord.x, gridCoord.y] = obj | (1 << objectIndex);
 
-
-        objectsSeperated.ToGPU();
+        velocityV[gridCoord.x    , gridCoord.y    ] = 0;
+        velocityV[gridCoord.x    , gridCoord.y + 1] = 0;
+        velocityH[gridCoord.x    , gridCoord.y    ] = 0;
+        velocityH[gridCoord.x + 1, gridCoord.y    ] = 0;
     }
 }
 }

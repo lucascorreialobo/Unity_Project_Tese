@@ -1,0 +1,110 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+#pragma kernel SumAll
+
+RWStructuredBuffer<int> _objects;
+RWStructuredBuffer<float> _pressure;
+RWStructuredBuffer<float2> _resultForce; //size= number of threads groups dispatched
+
+int _objectIndex;
+uint2 _simRes;
+
+//const float cellSize = 0.01; //meters
+
+#include "positions.cginc"
+
+#define THREADS_PER_GROUP 1024
+//[cell0_object0_force, cell0_object1_force, cell0_object2_force, ... ]
+//groupshared float2 sharedForce[THREADS_PER_GROUP * _numberOfObjects]; 
+groupshared float2 sharedForce[THREADS_PER_GROUP]; 
+
+[numthreads(THREADS_PER_GROUP, 1, 1)]
+void CSMain(uint3 groupID : SV_GroupID, uint3 tid : SV_GroupThreadID, uint3 id : SV_DispatchThreadID)
+{
+    
+    //uint2 simXY = id.xy;
+    uint simXY_1D = id.x;
+    
+    int objects = _objects[simXY_1D];
+
+    sharedForce[tid.x] = 0;
+    
+    //calculate individual forces
+    if (simXY_1D < _simRes.x * _simRes.y)
+    {
+        //for (int objectIndex = 0; objectIndex < _numberOfObjects; objectIndex++)
+        //{
+        int isFluid = (objects >> _objectIndex) & 1;
+        
+        float2 force = 0;
+        
+        if (isFluid == 0)
+        {
+            float xForce = _pressure[LEFT(simXY_1D)] - _pressure[RIGHT(simXY_1D)];
+            float yForce = _pressure[DOWN(simXY_1D)] - _pressure[UP(simXY_1D)];
+
+            force += float2(xForce, yForce);
+
+            //sharedForce[(tid.x * _numberOfObjects) + objectIndex] = force;
+            sharedForce[tid.x] = force;
+        }
+        
+        //}
+    }
+    
+    GroupMemoryBarrierWithGroupSync();
+    
+    
+    // Perform parallel reduction
+    for (uint stride = THREADS_PER_GROUP / 2; stride > 0; stride /= 2)
+    {
+        if (tid.x < stride)
+        {
+            //for (int objectIndex = 0; objectIndex < _numberOfObjects; objectIndex++)
+            //{
+            sharedForce[tid.x] += sharedForce[tid.x + stride];
+
+            //}
+        }
+        GroupMemoryBarrierWithGroupSync();
+        
+    }
+    
+    if (tid.x == 0)
+    {
+        _resultForce[groupID.x] = sharedForce[0];
+    }
+    
+}
+
+
+RWStructuredBuffer<float2> _resultForceSummed;
+
+int _length;
+
+[numthreads(THREADS_PER_GROUP, 1, 1)]
+void SumAll(uint3 groupID : SV_GroupID, uint3 tid : SV_GroupThreadID, uint3 id : SV_DispatchThreadID)
+{
+    int idx = id.x;
+    
+    sharedForce[tid.x] = idx < _length ? _resultForce[id.x] : 0;
+    
+    GroupMemoryBarrierWithGroupSync();
+    
+    // Perform parallel reduction
+    for (uint stride = THREADS_PER_GROUP / 2; stride > 0; stride /= 2)
+    {
+        if (tid.x < stride)
+        {
+            sharedForce[tid.x] += sharedForce[tid.x + stride];
+        }
+        GroupMemoryBarrierWithGroupSync();
+
+    }
+    
+    if (tid.x == 0)
+    {
+        _resultForceSummed[groupID.x] = sharedForce[0];
+    }
+    
+}

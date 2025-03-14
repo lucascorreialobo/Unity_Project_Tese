@@ -20,6 +20,7 @@ public class MainSimulationRunner : MonoBehaviour
     [SerializeField] private ComputeShader copyFloatsBufferShader;
     [SerializeField] private ComputeShader findMinMaxValueShader;
     [SerializeField] private ComputeShader mergeObjectsShader;
+    [SerializeField] private ComputeShader calculateForcesShader;
 
 
     [SerializeField] private ComputeShader pressureShader;
@@ -51,6 +52,7 @@ public class MainSimulationRunner : MonoBehaviour
     private int2 firstClickCoord;
 
     [SerializeField] private bool simulationPlaying = false;
+    [SerializeField] private int activeObject = 0;
 
 
     private enum ClickType
@@ -74,7 +76,8 @@ public class MainSimulationRunner : MonoBehaviour
         ADVECT_SMOKE,
         DRAW_BALL,
         MAKE_TUNNEL,
-        ADD_OBJECT
+        ADD_OBJECT,
+        CALCULTATE_FORCES
     }
 
     public enum ViewType
@@ -130,14 +133,14 @@ public class MainSimulationRunner : MonoBehaviour
             double start = Time.realtimeSinceStartupAsDouble;
             UpdateNormal();
             double end = Time.realtimeSinceStartupAsDouble;
-            Debug.Log("This frame took " + (end - start).ToString("E") + " seconds to calculate.");
+            //Debug.Log("This frame took " + (end - start).ToString("E") + " seconds to calculate.");
         }
 
         if (simulationPlaying){
             double start = Time.realtimeSinceStartupAsDouble;
             UpdateNormal();
             double end = Time.realtimeSinceStartupAsDouble;
-            Debug.Log("This frame took " + (end - start).ToString("E") + " seconds to calculate.");
+            //Debug.Log("This frame took " + (end - start).ToString("E") + " seconds to calculate.");
 
         }
 
@@ -191,7 +194,7 @@ public class MainSimulationRunner : MonoBehaviour
                     double start = Time.realtimeSinceStartupAsDouble;
                     CheckMaxMinClick();
                     double end = Time.realtimeSinceStartupAsDouble;
-                    Debug.Log("This minMax took " + (end - start).ToString("E") + " seconds to calculate.");
+                    //Debug.Log("This minMax took " + (end - start).ToString("E") + " seconds to calculate.");
                 }
                 break;
             case ClickType.CHECK_MAX_MIN_PRESSURE_SHADER:
@@ -199,7 +202,7 @@ public class MainSimulationRunner : MonoBehaviour
                     double start = Time.realtimeSinceStartupAsDouble;
                     CheckMaxMinShaderClick();
                     double end = Time.realtimeSinceStartupAsDouble;
-                    Debug.Log("This minMax took " + (end - start).ToString("E") + " seconds to calculate.");
+                    //Debug.Log("This minMax took " + (end - start).ToString("E") + " seconds to calculate.");
                 }
                 break;
             case ClickType.INDIVIDUAL_ADVECT_VELOCITIES:
@@ -232,6 +235,10 @@ public class MainSimulationRunner : MonoBehaviour
             case ClickType.ADD_OBJECT:
                 if(!repeatClick)
                     addObjectClick(gridCoord);
+                break;
+            case ClickType.CALCULTATE_FORCES:
+                if(!repeatClick)
+                    calcultateForcesClick();
                 break;
             default:
                 break;
@@ -320,7 +327,7 @@ public class MainSimulationRunner : MonoBehaviour
 
         int kernel = projectionShader.FindKernel("CSMain");
         projectionShader.SetBuffer(kernel, "_pressure", simState.pressure.GetComputeBuffer());
-        projectionShader.SetBuffer(kernel, "_type", simState.wall.GetComputeBuffer());
+        projectionShader.SetBuffer(kernel, "_type", simState.objectsMerged.GetComputeBuffer());
         projectionShader.SetBuffer(kernel, "_velocityV", simState.velocityV.GetComputeBuffer());
         projectionShader.SetBuffer(kernel, "_velocityH", simState.velocityH.GetComputeBuffer());
         projectionShader.SetInts("_simRes", new int[] { simResolution.x, simResolution.y });
@@ -428,6 +435,7 @@ public class MainSimulationRunner : MonoBehaviour
     }
 
     private void ToggleWalClick(int2 gridCoord) {
+        simState.wall.FromGPU();
         simState.wall[gridCoord.x, gridCoord.y] = (simState.wall[gridCoord.x, gridCoord.y] - 1) * -1; //toggle between 0 and 1
         simState.wall.ToGPU();
     }
@@ -435,7 +443,7 @@ public class MainSimulationRunner : MonoBehaviour
     private void ProjectSingleCellClick(int2 gridCoord) {
         int kernel = individualProjectionShader.FindKernel("CSMain");
         individualProjectionShader.SetBuffer(kernel, "_pressure", simState.pressure.GetComputeBuffer());
-        individualProjectionShader.SetBuffer(kernel, "_type", simState.wall.GetComputeBuffer());
+        individualProjectionShader.SetBuffer(kernel, "_type", simState.objectsMerged.GetComputeBuffer());
         individualProjectionShader.SetBuffer(kernel, "_velocityV", simState.velocityV.GetComputeBuffer());
         individualProjectionShader.SetBuffer(kernel, "_velocityH", simState.velocityH.GetComputeBuffer());
         individualProjectionShader.SetInts("_simRes", new int[] { simResolution.x, simResolution.y });
@@ -452,7 +460,7 @@ public class MainSimulationRunner : MonoBehaviour
 
         Debug.Log("Clicked cell: (" + gridCoord.x + "," + gridCoord.y + ")"
         + "\nPressure: " + simState.pressure[gridCoord.x, gridCoord.y].ToString("F2") + " Pa (Pascal)"
-        + "\nType: " + simState.wall[gridCoord.x, gridCoord.y] + " (0 - Wall | 1 - Fluid)"
+        + "\nType: " + simState.objectsMerged[gridCoord.x, gridCoord.y] + " (0 - Wall/Object | 1 - Fluid)"
         + "\nSmoke: " + simState.smoke[gridCoord.x, gridCoord.y]
         + "\nTotal divergence: " + totalDivergence.ToString("F3") + ". (x-1: " + -left + " | y-1: " + -down + " | x+1: " + right + " | y+1: " + up + ")");
     }
@@ -545,7 +553,7 @@ public class MainSimulationRunner : MonoBehaviour
         copyFloatsBufferShader.Dispatch(0, (simState.simRes.x * simState.simRes.y / 64) + 1, 1, 1);
 
         int kernel = individualAdvectionShader.FindKernel("CSMain");
-        individualAdvectionShader.SetBuffer(kernel, "_type", simState.wall.GetComputeBuffer());
+        individualAdvectionShader.SetBuffer(kernel, "_type", simState.objectsMerged.GetComputeBuffer());
         individualAdvectionShader.SetBuffer(kernel, "_velocityV", simState.velocityV.GetComputeBuffer());
         individualAdvectionShader.SetBuffer(kernel, "_velocityH", simState.velocityH.GetComputeBuffer());
         individualAdvectionShader.SetBuffer(kernel, "_newVelocityV", newVelocityV.GetComputeBuffer());
@@ -587,7 +595,7 @@ public class MainSimulationRunner : MonoBehaviour
         copyFloatsBufferShader.Dispatch(0, (simState.simRes.x * simState.simRes.y / 64) + 1, 1, 1);
 
         int kernel = advectionVelocitiesShader.FindKernel("CSMain");
-        advectionVelocitiesShader.SetBuffer(kernel, "_type", simState.wall.GetComputeBuffer());
+        advectionVelocitiesShader.SetBuffer(kernel, "_type", simState.objectsMerged.GetComputeBuffer());
         advectionVelocitiesShader.SetBuffer(kernel, "_velocityV", simState.velocityV.GetComputeBuffer());
         advectionVelocitiesShader.SetBuffer(kernel, "_velocityH", simState.velocityH.GetComputeBuffer());
         advectionVelocitiesShader.SetBuffer(kernel, "_newVelocityV", newVelocityV.GetComputeBuffer());
@@ -660,7 +668,7 @@ public class MainSimulationRunner : MonoBehaviour
 
 
         int kernel = advectionPropertyShader.FindKernel("CSMain");
-        advectionPropertyShader.SetBuffer(kernel, "_type", simState.wall.GetComputeBuffer());
+        advectionPropertyShader.SetBuffer(kernel, "_type", simState.objectsMerged.GetComputeBuffer());
         advectionPropertyShader.SetBuffer(kernel, "_velocityV", simState.velocityV.GetComputeBuffer());
         advectionPropertyShader.SetBuffer(kernel, "_velocityH", simState.velocityH.GetComputeBuffer());
         advectionPropertyShader.SetBuffer(kernel, "_advectedProperty", simState.smoke.GetComputeBuffer());
@@ -689,7 +697,7 @@ public class MainSimulationRunner : MonoBehaviour
 
 
         int kernel = advectionPropertyShader.FindKernel("CSMain");
-        advectionPropertyShader.SetBuffer(kernel, "_type", simState.wall.GetComputeBuffer());
+        advectionPropertyShader.SetBuffer(kernel, "_type", simState.objectsMerged.GetComputeBuffer());
         advectionPropertyShader.SetBuffer(kernel, "_velocityV", simState.velocityV.GetComputeBuffer());
         advectionPropertyShader.SetBuffer(kernel, "_velocityH", simState.velocityH.GetComputeBuffer());
         advectionPropertyShader.SetBuffer(kernel, "_advectedProperty", simState.smoke.GetComputeBuffer());
@@ -709,20 +717,26 @@ public class MainSimulationRunner : MonoBehaviour
     }
 
     private void drawBallClick(int2 gridCoord) {
-        simState.wall.FromGPU();
+        simState.objectsSeperated.FromGPU();
+        simState.velocityV.FromGPU();
+        simState.velocityH.FromGPU();
+
         int radius = 10;
         int2 center = gridCoord;
 
         for(int x = -radius; x < radius; x++) {
             for(int y = -radius; y < radius; y++) {
                 float distanceToCenter = math.square(x) + math.square(y);
-                Debug.Log("relative point (" + x + "," + y + ") distance to center (" + center.x + "," + center.y + ") is " + distanceToCenter);
+                //Debug.Log("relative point (" + x + "," + y + ") distance to center (" + center.x + "," + center.y + ") is " + distanceToCenter);
                 if(distanceToCenter < math.square(radius))
-                    simState.wall[gridCoord.x + x, gridCoord.y + y] = 0;
+                    simState.addObjectNoGPU(activeObject, gridCoord + new int2(x,y));
+                    //simState.wall[gridCoord.x + x, gridCoord.y + y] = 0;
             }
         }
 
-        simState.wall.ToGPU();
+        simState.objectsSeperated.ToGPU();
+        simState.velocityV.ToGPU();
+        simState.velocityH.ToGPU();
     }
 
     private void makeTunnelClick() {
@@ -739,7 +753,49 @@ public class MainSimulationRunner : MonoBehaviour
 
     private void addObjectClick(int2 gridCoord) {
 
-        simState.addObject(0, gridCoord);
+        simState.addObject(activeObject, gridCoord);
+    }
+
+    private void calcultateForcesClick() {
+        int threadSize = 1024;
+        int numberOfGroups = (simState.simRes.x * simState.simRes.y / threadSize) + 1;
+        Buf2<float2> resultForces = new Buf2<float2>(numberOfGroups * threadSize, 1);
+        Buf2<float2> resultForcesSummed = new Buf2<float2>(numberOfGroups, 1);
+        int kernel = calculateForcesShader.FindKernel("CSMain");
+
+        calculateForcesShader.SetBuffer(kernel, "_objects", simState.objectsSeperated.GetComputeBuffer());
+        calculateForcesShader.SetBuffer(kernel, "_pressure", simState.pressure.GetComputeBuffer());
+        calculateForcesShader.SetBuffer(kernel, "_resultForce", resultForces.GetComputeBuffer());
+        calculateForcesShader.SetInt("_objectIndex", activeObject);
+        calculateForcesShader.SetInts("_simRes", new int[] { simState.simRes.x, simState.simRes.y });
+
+        calculateForcesShader.Dispatch(kernel, numberOfGroups, 1, 1);
+
+        kernel = calculateForcesShader.FindKernel("SumAll");
+
+        while(numberOfGroups > 1){
+            calculateForcesShader.SetBuffer(kernel, "_resultForce", resultForces.GetComputeBuffer());
+            calculateForcesShader.SetBuffer(kernel, "_resultForceSummed", resultForcesSummed.GetComputeBuffer());
+            calculateForcesShader.SetInt("_length", numberOfGroups);
+
+            numberOfGroups = (numberOfGroups / threadSize) + 1;
+            calculateForcesShader.Dispatch(kernel, numberOfGroups, 1, 1);
+
+            Buf2<float2> temp = resultForces;
+            resultForces = resultForcesSummed;
+            resultForcesSummed = temp;
+        }
+
+        
+        resultForces.FromGPU();
+
+        float2 totalForce = resultForces[0,0];
+
+        Debug.Log($"The force applied on object {activeObject} has vector ({totalForce.x:F2}; {totalForce.y:F2})N");
+
+        resultForces.Release();
+        resultForcesSummed.Release();
+
     }
 
     private void mergeObjects() {

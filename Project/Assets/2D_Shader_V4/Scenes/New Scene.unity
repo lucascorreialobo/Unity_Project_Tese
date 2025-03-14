@@ -367,14 +367,15 @@ MonoBehaviour:
   upscalingShader: {fileID: 7200000, guid: d3abf880241259741943958079756845, type: 3}
   addBordersShader: {fileID: 7200000, guid: b324130ffa8608241acd11b8a2ad1e81, type: 3}
   simResolution:
-    x: 10
-    y: 10
+    x: 100
+    y: 100
   tex: {fileID: 0}
   activeClickType: 0
   activeViewType: 0
   showArrows: 0
   showBorders: 0
   simulationPlaying: 0
+  activeObject: 0
 --- !u!1 &1439644579
 GameObject:
   m_ObjectHideFlags: 0
