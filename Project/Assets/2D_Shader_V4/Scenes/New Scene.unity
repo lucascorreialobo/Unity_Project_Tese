@@ -359,6 +359,7 @@ MonoBehaviour:
   copyFloatsBufferShader: {fileID: 7200000, guid: 4039769f25a1d984785f4cac50507822, type: 3}
   findMinMaxValueShader: {fileID: 7200000, guid: 23482f702d82bff4c9c2a722720d40a1, type: 3}
   mergeObjectsShader: {fileID: 7200000, guid: b259eee2c07e7414b8614f437b540181, type: 3}
+  calculateForcesShader: {fileID: 7200000, guid: 1fa092cfd2cc753478523d3eebca1e54, type: 3}
   pressureShader: {fileID: 7200000, guid: b289ecafb9e0b4c428e66cccf07ad829, type: 3}
   typeShader: {fileID: 7200000, guid: 484f28c3ab3b8bd4e971ef694a3f5ddb, type: 3}
   objectShader: {fileID: 7200000, guid: 287d795ae8265bc4582b1f8a39de940c, type: 3}
