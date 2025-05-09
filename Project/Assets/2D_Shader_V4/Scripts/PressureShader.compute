@@ -46,7 +46,7 @@ float4 getSciColor(float val, float minVal, float maxVal)
             break;
     }
     
-    return float4(r, g, b, 0);
+    return float4(r, g, b, 1);
 
 }
 
@@ -64,7 +64,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
 
     uint simXY_1D = simXY.x * _simRes.y + simXY.y;
     
-    float4 color = float4(0, 0, 0, 0);
+    float4 color = float4(0, 0, 0, 1);
     
     if (_type[simXY_1D] != 0)
     {

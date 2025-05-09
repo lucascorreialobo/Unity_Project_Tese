@@ -103,6 +103,8 @@ public class MainSimulationRunner : MonoBehaviour
         };
         tex.Create();
 
+        ResizePlane();
+
         plane.GetComponent<Renderer>().material.mainTexture = tex;
 
         property = new Buf2<float>(simResolution.x, simResolution.y);
@@ -150,6 +152,15 @@ public class MainSimulationRunner : MonoBehaviour
         renderHandler.RenderFinalTexture(showArrows, showBorders, activeViewType);
 
     }
+
+    void ResizePlane(){
+        float simAspectRatio = (float)viewResolution.x / viewResolution.y;
+        if(simAspectRatio < 1)
+            plane.transform.localScale = new Vector3(simAspectRatio, 1, 1);
+        else
+            plane.transform.localScale = new Vector3(1, 1, 1 / simAspectRatio);
+    }
+
 
     //pos should be normalized between 0 and 1
     public void Click(float2 pos, bool repeatClick){
@@ -278,6 +289,7 @@ public class MainSimulationRunner : MonoBehaviour
                 }
         }
         property.ToGPU();
+
     }
 
     void CheckboardProperty(){
@@ -296,6 +308,7 @@ public class MainSimulationRunner : MonoBehaviour
     void OnDestroy(){
         property.Release();
         simState.Destroy();
+        tex.Release();
     }
 
     void ChangeViewRes(int newSimResMult){
@@ -654,7 +667,7 @@ public class MainSimulationRunner : MonoBehaviour
 
     private void addSmokeClick(int2 gridCoord) {
         simState.smoke.FromGPU();
-        simState.smoke[gridCoord.x, gridCoord.y] += 0.1f;
+        simState.smoke[gridCoord.x, gridCoord.y] += 1f;
         simState.smoke.ToGPU();
         return;
     }

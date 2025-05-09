@@ -228,8 +228,8 @@ MonoBehaviour:
   advectionShader: {fileID: 7200000, guid: 68e7e0ca509a6b84d84a430de66538b6, type: 3}
   colorShader: {fileID: 7200000, guid: 26576100b19b12e4fa32e9c29f8b77ef, type: 3}
   fluidTex: {fileID: 0}
-  resX: 14
-  resY: 8
+  resX: 16
+  resY: 16
 --- !u!1 &1058606292
 GameObject:
   m_ObjectHideFlags: 0

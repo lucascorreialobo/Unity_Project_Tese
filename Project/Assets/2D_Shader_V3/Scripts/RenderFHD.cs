@@ -51,8 +51,8 @@ public class RenderFHD : MonoBehaviour
 
         int kernel = viewRenderer.FindKernel("CSMain");
         viewRenderer.SetTexture(kernel, "Result", tex);
-        // viewRenderer.SetBuffer(kernel, "_property", property.GetComputeBuffer());
-        viewRenderer.SetBuffer(kernel, "_property", simState.pressure.GetComputeBuffer());
+        viewRenderer.SetBuffer(kernel, "_property", property.GetComputeBuffer());
+        //viewRenderer.SetBuffer(kernel, "_property", simState.pressure.GetComputeBuffer());
         viewRenderer.SetBuffer(kernel, "_propertyBordersV", simState.velocityV.GetComputeBuffer());
         viewRenderer.SetBuffer(kernel, "_propertyBordersH", simState.velocityH.GetComputeBuffer());
         viewRenderer.SetInts("_viewRes", new int[]{viewRes.x, viewRes.y});
