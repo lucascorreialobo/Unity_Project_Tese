@@ -5,6 +5,7 @@ RWStructuredBuffer<float> _pressure;
 RWStructuredBuffer<float> _type; // 0 - wall  | 1 - fluid
 RWStructuredBuffer<float> _velocityV;
 RWStructuredBuffer<float> _velocityH;
+RWStructuredBuffer<uint> _flag;
 
 uint2 _simRes;
 uint2 _offset; // (0,0) (0,1) (1,0) (1,1)
@@ -15,6 +16,9 @@ uint2 _offset; // (0,0) (0,1) (1,0) (1,1)
 [numthreads(8,8,1)]
 void CSMain(uint3 id : SV_DispatchThreadID)
 {
+    if(_flag[0] == 2) //fluid is already incompressible
+        return;
+    
     float overrelaxation = 1.5; //must be  >= 1 && < 2. higher values lead to faster convergence
     int2 cell = (id.xy * 2) + _offset;
     
@@ -44,6 +48,7 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     _velocityV[      simXY_1D ] += _type[ DOWN(simXY_1D)] * avgDivergence;
     _velocityV[   UP(simXY_1D)] -= _type[   UP(simXY_1D)] * avgDivergence;
      
-   
+   if(divergence > 0.01) //divergence was high
+        _flag[0] = 1; // next pass is required
     
 }

@@ -19,6 +19,7 @@ public class SimulationState
     public Buf2<float> smoke;
     public Buf2<int> objectsSeperated;
     public Buf2<float> objectsMerged;
+    public Buf2<uint> earlystopFlag; //buffer has only one value || 0 - all cells div < threashold, current pass | 1 - at least one cell has div > threashold | 2 - imcompressebility achieved
 
     public int numberOfObjects; //max number is sizeOf(int) * 8 = number of bits
     public int2 simRes;
@@ -31,6 +32,7 @@ public class SimulationState
         smoke = new Buf2<float>(simRes.x, simRes.y);
         objectsSeperated = new Buf2<int>(simRes.x, simRes.y);
         objectsMerged = new Buf2<float>(simRes.x, simRes.y);
+        earlystopFlag = new Buf2<uint>(1,1);
 
         this.numberOfObjects = numberOfObjects;
         this.simRes = simRes;
@@ -70,6 +72,7 @@ public class SimulationState
         smoke.ToGPU();
         objectsMerged.ToGPU();
         objectsSeperated.ToGPU();
+        earlystopFlag.ToGPU();
     }
 
 
@@ -81,6 +84,7 @@ public class SimulationState
         smoke.FromGPU();
         objectsMerged.FromGPU();
         objectsSeperated.FromGPU();
+        earlystopFlag.FromGPU();
     }
 
 
@@ -92,6 +96,7 @@ public class SimulationState
         smoke.Release();
         objectsMerged.Release();
         objectsSeperated.Release();
+        earlystopFlag.Release();
     }
 
     public void addObject(int objectIndex, int2 gridCoord) {

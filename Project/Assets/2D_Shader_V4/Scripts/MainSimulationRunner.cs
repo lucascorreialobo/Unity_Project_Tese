@@ -15,6 +15,7 @@ public class MainSimulationRunner : MonoBehaviour
     [SerializeField] private ComputeShader individualAdvectionShader;
     [SerializeField] private ComputeShader individualAdvectionPropertyShader;
     [SerializeField] private ComputeShader projectionShader;
+    [SerializeField] private ComputeShader ResetProjectionFlagShader;
     [SerializeField] private ComputeShader advectionVelocitiesShader;
     [SerializeField] private ComputeShader advectionPropertyShader;
     [SerializeField] private ComputeShader clearPressureShader;
@@ -343,14 +344,18 @@ public class MainSimulationRunner : MonoBehaviour
         projectionShader.SetBuffer(kernel, "_type", simState.objectsMerged.GetComputeBuffer());
         projectionShader.SetBuffer(kernel, "_velocityV", simState.velocityV.GetComputeBuffer());
         projectionShader.SetBuffer(kernel, "_velocityH", simState.velocityH.GetComputeBuffer());
+        projectionShader.SetBuffer(kernel, "_flag", simState.earlystopFlag.GetComputeBuffer());
         projectionShader.SetInts("_simRes", new int[] { simResolution.x, simResolution.y });
 
         int threadGroupX = ((simState.simRes.x / 2) / 8) + 1;
         int threadGroupY = ((simState.simRes.y / 2) / 8) + 1;
 
+        ResetProjectionFlagShader.SetBuffer(kernel, "_flag", simState.earlystopFlag.GetComputeBuffer());
+
         
         int i = 0;
         for(i = 0; i < 100; i++){
+
             
             projectionShader.SetInts("_offset", new int[] { 0, 0 });
             projectionShader.Dispatch(kernel, threadGroupX, threadGroupY, 1);
@@ -367,6 +372,8 @@ public class MainSimulationRunner : MonoBehaviour
             //Debug.Log("Max divergence on iteration " + i + ": " + maxDivergence);
             //if(maxDivergence <= 0.001 && false)
             //    break;
+
+            ResetProjectionFlagShader.Dispatch(kernel, 1, 1, 1);
 
         }
         Debug.Log("number of iteration needed for compressibility: " + i);
