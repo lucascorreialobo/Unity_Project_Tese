@@ -353,6 +353,8 @@ MonoBehaviour:
   individualAdvectionShader: {fileID: 7200000, guid: cb02b0954d42bb440b70eee1cb986445, type: 3}
   individualAdvectionPropertyShader: {fileID: 7200000, guid: fabb7afd0c8251e44a90c623d2c19db7, type: 3}
   projectionShader: {fileID: 7200000, guid: 3408c9c98a65e3f4e8c2dbba6169f655, type: 3}
+  updateProjectionFlagShader: {fileID: 7200000, guid: ae1e02a73c332a74eb99bad4671abacb, type: 3}
+  resetProjectionFlagShader: {fileID: 7200000, guid: 040780eba826bbf41a405aedadd138eb, type: 3}
   advectionVelocitiesShader: {fileID: 7200000, guid: 1a3b46a045e80ad40b25cfbb9028fbb8, type: 3}
   advectionPropertyShader: {fileID: 7200000, guid: fc1ce4661c406494cb3693d6935ed900, type: 3}
   clearPressureShader: {fileID: 7200000, guid: d2c502fabef1027469e0f05e349b9cf4, type: 3}

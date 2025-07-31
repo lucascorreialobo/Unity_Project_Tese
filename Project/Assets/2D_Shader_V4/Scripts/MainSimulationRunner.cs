@@ -15,7 +15,8 @@ public class MainSimulationRunner : MonoBehaviour
     [SerializeField] private ComputeShader individualAdvectionShader;
     [SerializeField] private ComputeShader individualAdvectionPropertyShader;
     [SerializeField] private ComputeShader projectionShader;
-    [SerializeField] private ComputeShader ResetProjectionFlagShader;
+    [SerializeField] private ComputeShader updateProjectionFlagShader;
+    [SerializeField] private ComputeShader resetProjectionFlagShader;
     [SerializeField] private ComputeShader advectionVelocitiesShader;
     [SerializeField] private ComputeShader advectionPropertyShader;
     [SerializeField] private ComputeShader clearPressureShader;
@@ -34,7 +35,7 @@ public class MainSimulationRunner : MonoBehaviour
     [SerializeField] private ComputeShader addBordersShader;
     private RenderHandler renderHandler;
     [SerializeField] private int2 simResolution = new int2(500, 500);
-    private readonly int viewResMult = 100;
+    private readonly int viewResMult = 1;
     private int2 viewResolution = new int2(0, 0);
 
     
@@ -350,7 +351,8 @@ public class MainSimulationRunner : MonoBehaviour
         int threadGroupX = ((simState.simRes.x / 2) / 8) + 1;
         int threadGroupY = ((simState.simRes.y / 2) / 8) + 1;
 
-        ResetProjectionFlagShader.SetBuffer(kernel, "_flag", simState.earlystopFlag.GetComputeBuffer());
+        updateProjectionFlagShader.SetBuffer(kernel, "_flag", simState.earlystopFlag.GetComputeBuffer());
+        resetProjectionFlagShader.SetBuffer(kernel, "_flag", simState.earlystopFlag.GetComputeBuffer());
 
         
         int i = 0;
@@ -369,14 +371,15 @@ public class MainSimulationRunner : MonoBehaviour
             projectionShader.SetInts("_offset", new int[] { 1, 1 });
             projectionShader.Dispatch(kernel, threadGroupX, threadGroupY, 1);
 
-            //Debug.Log("Max divergence on iteration " + i + ": " + maxDivergence);
-            //if(maxDivergence <= 0.001 && false)
-            //    break;
 
-            ResetProjectionFlagShader.Dispatch(kernel, 1, 1, 1);
-
+            updateProjectionFlagShader.Dispatch(kernel, 1, 1, 1);
+                //simState.earlystopFlag.FromGPU();
+                //Debug.Log(simState.earlystopFlag[0,0]);
         }
-        Debug.Log("number of iteration needed for compressibility: " + i);
+        
+        //Debug.Log("number of iteration needed for compressibility: " + i);
+        resetProjectionFlagShader.Dispatch(kernel, 1, 1, 1);
+
     }
 
     private void AddVelocitiesClick(int2 gridCoord) {

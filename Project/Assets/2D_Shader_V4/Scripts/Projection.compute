@@ -48,7 +48,7 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     _velocityV[      simXY_1D ] += _type[ DOWN(simXY_1D)] * avgDivergence;
     _velocityV[   UP(simXY_1D)] -= _type[   UP(simXY_1D)] * avgDivergence;
      
-   if(divergence > 0.01) //divergence was high
+    if (abs(divergence) > 0.001) //divergence was high
         _flag[0] = 1; // next pass is required
     
 }
