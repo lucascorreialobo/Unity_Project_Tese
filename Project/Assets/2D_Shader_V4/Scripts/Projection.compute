@@ -9,6 +9,7 @@ RWStructuredBuffer<float> _velocityH;
 uint2 _simRes;
 uint2 _offset; // (0,0) (0,1) (1,0) (1,1)
 
+
 #include "positions.cginc"
 
 [numthreads(8,8,1)]
@@ -43,7 +44,6 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     _velocityV[      simXY_1D ] += _type[ DOWN(simXY_1D)] * avgDivergence;
     _velocityV[   UP(simXY_1D)] -= _type[   UP(simXY_1D)] * avgDivergence;
      
-    
-    
+   
     
 }

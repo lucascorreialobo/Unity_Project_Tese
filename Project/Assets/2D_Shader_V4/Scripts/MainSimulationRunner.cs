@@ -3,6 +3,7 @@ using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UIElements;
 using Utils;
+using static UnityEngine.Rendering.DebugUI;
 
 namespace _2D_Shader_V4 {
 
@@ -268,7 +269,6 @@ public class MainSimulationRunner : MonoBehaviour
         //projection  | Is it worth to measure divergence every projection to end early?
         RemoveCompressibilityClick();
 
-        //extrapolation??
 
         //advection
         AdvectVelocitiesClick();
@@ -348,6 +348,7 @@ public class MainSimulationRunner : MonoBehaviour
         int threadGroupX = ((simState.simRes.x / 2) / 8) + 1;
         int threadGroupY = ((simState.simRes.y / 2) / 8) + 1;
 
+        
         int i = 0;
         for(i = 0; i < 100; i++){
             
@@ -363,25 +364,12 @@ public class MainSimulationRunner : MonoBehaviour
             projectionShader.SetInts("_offset", new int[] { 1, 1 });
             projectionShader.Dispatch(kernel, threadGroupX, threadGroupY, 1);
 
-            //float maxDivergence = 0;
-            //simState.velocityV.FromGPU();
-            //simState.velocityH.FromGPU();
-
-            //for(int x = 1; x < simState.simRes.x - 1; x++) {
-            //    for(int y = 1; y < simState.simRes.y - 1; y++) {
-            //        float down = simState.velocityV[x, y]; float up = simState.velocityV[x, y + 1];
-            //        float left = simState.velocityH[x, y]; float right = simState.velocityH[x + 1, y];
-            //        float cellDivergence = -down + up - left + right;
-
-            //        if(cellDivergence > maxDivergence)
-            //            maxDivergence = cellDivergence;
-            //    }
-            //}
             //Debug.Log("Max divergence on iteration " + i + ": " + maxDivergence);
             //if(maxDivergence <= 0.001 && false)
             //    break;
+
         }
-        //Debug.Log("number of iteration needed for compressibility: " + i);
+        Debug.Log("number of iteration needed for compressibility: " + i);
     }
 
     private void AddVelocitiesClick(int2 gridCoord) {
