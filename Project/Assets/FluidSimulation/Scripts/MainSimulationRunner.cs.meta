@@ -1,0 +1,34 @@
+fileFormatVersion: 2
+guid: d4520721f4fa05b42b657d4048c3c14e
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - viewRenderer: {instanceID: 0}
+  - addArrowShader: {instanceID: 0}
+  - individualProjectionShader: {instanceID: 0}
+  - individualAdvectionShader: {instanceID: 0}
+  - individualAdvectionPropertyShader: {instanceID: 0}
+  - projectionShader: {instanceID: 0}
+  - updateProjectionFlagShader: {instanceID: 0}
+  - resetProjectionFlagShader: {instanceID: 0}
+  - advectionVelocitiesShader: {instanceID: 0}
+  - advectionPropertyShader: {instanceID: 0}
+  - clearPressureShader: {instanceID: 0}
+  - copyFloatsBufferShader: {instanceID: 0}
+  - findMinMaxValueShader: {instanceID: 0}
+  - mergeObjectsShader: {instanceID: 0}
+  - calculateForcesShader: {instanceID: 0}
+  - pressureShader: {instanceID: 0}
+  - typeShader: {instanceID: 0}
+  - objectShader: {instanceID: 0}
+  - smokeShader: {instanceID: 0}
+  - velocityShader: {instanceID: 0}
+  - upscalingShader: {instanceID: 0}
+  - addBordersShader: {instanceID: 0}
+  - tex: {instanceID: 0}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

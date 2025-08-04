@@ -3,7 +3,7 @@
 
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
-RWStructuredBuffer<int> _objects;
+RWStructuredBuffer<int> _objects; //bit n = 0 -> is part of object n
 RWStructuredBuffer<float> _walls; // 0 - wall | 1 - fluid
 RWStructuredBuffer<float> _merged; // 0 - wall/object | 1 - fluid
 
