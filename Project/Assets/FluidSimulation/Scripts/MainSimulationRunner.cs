@@ -34,7 +34,7 @@ public class MainSimulationRunner : MonoBehaviour
     [SerializeField] private ComputeShader upscalingShader;
     [SerializeField] private ComputeShader addBordersShader;
     private RenderHandler renderHandler;
-    [SerializeField] private int2 simResolution = new int2(500, 500);
+    [SerializeField] private int2 simResolution = new int2(128, 128);
     private readonly int viewResMult = 1;
     private int2 viewResolution = new int2(0, 0);
 
@@ -44,8 +44,8 @@ public class MainSimulationRunner : MonoBehaviour
 
     private Buf2<float> property;
     [SerializeField] private ClickType activeClickType = ClickType.NO_ACTION;
-    [SerializeField] private ViewType activeViewType = ViewType.DEBUG_PROPERTY;
-    private ViewType previousViewType = ViewType.DEBUG_PROPERTY;
+    [SerializeField] private ViewType activeViewType = ViewType.PRESSURE;
+    private ViewType previousViewType = ViewType.PRESSURE;
     private SimulationState simState;
     [SerializeField] private bool showArrows = false;
     [SerializeField] private bool showBorders = false;
@@ -54,7 +54,7 @@ public class MainSimulationRunner : MonoBehaviour
     private bool waitingForSecondClick = false;
     private int2 firstClickCoord;
 
-    [SerializeField] private bool simulationPlaying = false;
+    [SerializeField] public bool simulationPlaying = false;
     [SerializeField] private int activeObject = 0;
 
 
@@ -85,7 +85,6 @@ public class MainSimulationRunner : MonoBehaviour
 
     public enum ViewType
     {
-        DEBUG_PROPERTY,
         PRESSURE,
         TYPE,
         SMOKE,
@@ -418,16 +417,16 @@ public class MainSimulationRunner : MonoBehaviour
         simState.velocityH.FromGPU();
 
         
-        int2 distance = new int2(1, 0);
+        int2 direction2D = new int2(1, 0);
         float addedVelocity = 0.9f;
 
-        if (distance.x == 0) {
-            int direction = distance.y;
+        if (direction2D.x == 0) {
+            int direction = direction2D.y;
             int2 velocityIndex = direction > 0 ? gridCoord : firstClickCoord;
             simState.velocityV[velocityIndex.x, velocityIndex.y] = addedVelocity * direction;
 
-        } else if (distance.y == 0) {
-            int direction = distance.x;
+        } else if (direction2D.y == 0) {
+            int direction = direction2D.x;
             int2 velocityIndex = direction > 0 ? gridCoord : firstClickCoord;
             simState.velocityH[velocityIndex.x, velocityIndex.y] = addedVelocity * direction;
         }
@@ -476,7 +475,7 @@ public class MainSimulationRunner : MonoBehaviour
         + "\nTotal divergence: " + totalDivergence.ToString("F3") + ". (x-1: " + -left + " | y-1: " + -down + " | x+1: " + right + " | y+1: " + up + ")");
     }
 
-    private void CheckMaxMinClick() {
+    public float2 CheckMaxMinClick() {
         simState.pressure.FromGPU();
         Buf2<float> pressure = simState.pressure;
 
@@ -493,9 +492,11 @@ public class MainSimulationRunner : MonoBehaviour
         }
 
         Debug.Log("pressure max: " + max + "\npressure min: " + min);
+
+        return new float2(max, min);
     }
 
-    private void CheckMaxMinShaderClick() {
+    public void CheckMaxMinShaderClick() {
         int threadSize = 1024;
         int numberOfGroups = (simState.simRes.x * simState.simRes.y / threadSize) + 1;
         Buf2<float> resultBuffer = new Buf2<float>(numberOfGroups * 2, 1);
@@ -819,6 +820,47 @@ public class MainSimulationRunner : MonoBehaviour
 
         mergeObjectsShader.Dispatch(kernel, (simState.simRes.x * simState.simRes.y / 64) + 1, 1, 1);
     }
+
+
+    //public float2 FindMaxMinDivergence(){
+    //    simState.velocityV.FromGPU();
+    //    simState.velocityH.FromGPU();
+    //    simState.wall.FromGPU();
+
+    //    Buf2<float> velocityV = simState.velocityV;
+    //    Buf2<float> velocityH = simState.velocityH;
+    //    Buf2<float> objectsMerged = simState.wall;
+
+    //    float max = 0;
+    //    float min = 50;
+
+    //    int2 maxIndex = new int2(0,0);
+    //    int2 minIndex = new int2(0,0);
+
+    //    for(int x = 1; x < simState.simRes.x - 2; x++){
+    //        for(int y = 1; y < simState.simRes.y - 2; y++) {
+    //            float divergence = - velocityV[x,y] - velocityH[x,y] + velocityV[x,y+1] + velocityH[x+1,y];
+
+    //            if(objectsMerged[x,y] == 1){
+
+    //                if(math.abs(divergence) > max){
+    //                    max = math.abs(divergence);
+    //                    maxIndex = new int2(x,y);
+    //                }
+    //                if(math.abs(divergence) < min){
+    //                    min = math.abs(divergence);
+    //                    minIndex = new int2(x,y);
+    //                }
+    //            }
+    //        }
+    //    }
+
+    //    Debug.Log("divergence max: " + max + " on index: " + maxIndex + "\ndivergence min: " + min + "on index: " + minIndex);
+
+    //    return new float2(max, min);
+    //}
+
+
 
     private void addObject(int2 gridCoord) {
         int objectIndex = 0;

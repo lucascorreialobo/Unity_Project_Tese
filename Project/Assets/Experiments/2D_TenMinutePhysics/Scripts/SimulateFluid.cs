@@ -105,7 +105,7 @@ public class SimulateFluid : MonoBehaviour
     void Update()
     {
         simulate();
-        draw();
+        //draw();
     }
 
     private void simulate() {
