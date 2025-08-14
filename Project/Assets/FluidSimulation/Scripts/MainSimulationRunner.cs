@@ -1,3 +1,5 @@
+using System;
+using System.Globalization;
 using Unity.Mathematics;
 using Unity.VisualScripting;
 using UnityEngine;
@@ -57,6 +59,7 @@ public class MainSimulationRunner : MonoBehaviour
     [SerializeField] public bool simulationPlaying = false;
     [SerializeField] private int activeObject = 0;
 
+    [NonSerialized] public string updateDeltas = ""; //pressure reset, projection, velocity advection, smoke advection, mergeObjects, rendering
 
     private enum ClickType
     {
@@ -122,11 +125,12 @@ public class MainSimulationRunner : MonoBehaviour
         UpdateNormal();
 
         //addObject(new int2(0,0));
-        }
+    }
 
     // Update is called once per frame
     void Update()
     {
+        //updateDeltas = "";
         //P - Play/Pause simulation
         if (Input.GetKeyDown(KeyCode.P)){
             simulationPlaying = !simulationPlaying;
@@ -134,24 +138,30 @@ public class MainSimulationRunner : MonoBehaviour
 
         //N - next frame of simulation
         if (!simulationPlaying && Input.GetKeyDown(KeyCode.N)) {
-            double start = Time.realtimeSinceStartupAsDouble;
+            //double start = Time.realtimeSinceStartupAsDouble;
             UpdateNormal();
-            double end = Time.realtimeSinceStartupAsDouble;
+            //double end = Time.realtimeSinceStartupAsDouble;
             //Debug.Log("This frame took " + (end - start).ToString("E") + " seconds to calculate.");
         }
 
         if (simulationPlaying){
-            double start = Time.realtimeSinceStartupAsDouble;
+            //double start = Time.realtimeSinceStartupAsDouble;
             UpdateNormal();
-            double end = Time.realtimeSinceStartupAsDouble;
+            //double end = Time.realtimeSinceStartupAsDouble;
             //Debug.Log("This frame took " + (end - start).ToString("E") + " seconds to calculate.");
 
         }
 
-
+        //double startMerge = Time.realtimeSinceStartupAsDouble;
         mergeObjects();
+        //double endMerge = Time.realtimeSinceStartupAsDouble;
+        //updateDeltas += string.Format(CultureInfo.InvariantCulture, ",{0:F6}", endMerge-startMerge);
+
         //render results
+        //double startRendering = Time.realtimeSinceStartupAsDouble;
         renderHandler.RenderFinalTexture(showArrows, showBorders, activeViewType);
+        //double endRendering = Time.realtimeSinceStartupAsDouble;
+        //updateDeltas += string.Format(CultureInfo.InvariantCulture, ",{0:F6}", endRendering - startRendering);
 
     }
 
@@ -204,17 +214,17 @@ public class MainSimulationRunner : MonoBehaviour
                 break;
             case ClickType.CHECK_MAX_MIN_PRESSURE:
                 if (!repeatClick) {
-                    double start = Time.realtimeSinceStartupAsDouble;
+                    //double start = Time.realtimeSinceStartupAsDouble;
                     CheckMaxMinClick();
-                    double end = Time.realtimeSinceStartupAsDouble;
+                    //double end = Time.realtimeSinceStartupAsDouble;
                     //Debug.Log("This minMax took " + (end - start).ToString("E") + " seconds to calculate.");
                 }
                 break;
             case ClickType.CHECK_MAX_MIN_PRESSURE_SHADER:
                 if (!repeatClick) {
-                    double start = Time.realtimeSinceStartupAsDouble;
+                    //double start = Time.realtimeSinceStartupAsDouble;
                     CheckMaxMinShaderClick();
-                    double end = Time.realtimeSinceStartupAsDouble;
+                    //double end = Time.realtimeSinceStartupAsDouble;
                     //Debug.Log("This minMax took " + (end - start).ToString("E") + " seconds to calculate.");
                 }
                 break;
@@ -272,9 +282,15 @@ public class MainSimulationRunner : MonoBehaviour
 
 
         //advection
+        //double startVelocityAdvect = Time.realtimeSinceStartupAsDouble;
         AdvectVelocitiesClick();
+        //double endVelocityAdvect = Time.realtimeSinceStartupAsDouble;
+        //updateDeltas += string.Format(CultureInfo.InvariantCulture, ",{0:F6}", endVelocityAdvect - startVelocityAdvect);
 
+        //double startSmokeAdvect = Time.realtimeSinceStartupAsDouble;
         advectsmokeClick();
+        //double endSmokeAdvect = Time.realtimeSinceStartupAsDouble;
+        //updateDeltas += string.Format(CultureInfo.InvariantCulture, ",{0:F6}", endSmokeAdvect - startSmokeAdvect);
 
         
     }
@@ -336,7 +352,10 @@ public class MainSimulationRunner : MonoBehaviour
     private void RemoveCompressibilityClick() {
 
         clearPressureShader.SetBuffer(0, "_pressure", simState.pressure.GetComputeBuffer());
+        //double startClearPressure = Time.realtimeSinceStartupAsDouble;
         clearPressureShader.Dispatch(0, (simState.simRes.x * simState.simRes.y / 64) + 1, 1, 1);
+        //double endClearPressure = Time.realtimeSinceStartupAsDouble;
+        //updateDeltas += string.Format(CultureInfo.InvariantCulture, "{0:F6}", endClearPressure - startClearPressure);
         
 
         int kernel = projectionShader.FindKernel("CSMain");
@@ -353,6 +372,7 @@ public class MainSimulationRunner : MonoBehaviour
         updateProjectionFlagShader.SetBuffer(kernel, "_flag", simState.earlystopFlag.GetComputeBuffer());
         resetProjectionFlagShader.SetBuffer(kernel, "_flag", simState.earlystopFlag.GetComputeBuffer());
 
+        //double startProjection = Time.realtimeSinceStartupAsDouble;
         
         int i = 0;
         for(i = 0; i < 100; i++){
@@ -378,6 +398,10 @@ public class MainSimulationRunner : MonoBehaviour
         
         //Debug.Log("number of iteration needed for compressibility: " + i);
         resetProjectionFlagShader.Dispatch(kernel, 1, 1, 1);
+
+        
+        //double endProjection = Time.realtimeSinceStartupAsDouble;
+        //updateDeltas += string.Format(CultureInfo.InvariantCulture, ",{0:F6}", endProjection - startProjection);
 
     }
 
@@ -821,6 +845,7 @@ public class MainSimulationRunner : MonoBehaviour
         mergeObjectsShader.Dispatch(kernel, (simState.simRes.x * simState.simRes.y / 64) + 1, 1, 1);
     }
 
+    
 
     //public float2 FindMaxMinDivergence(){
     //    simState.velocityV.FromGPU();

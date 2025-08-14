@@ -323,6 +323,8 @@ GameObject:
   - component: {fileID: 1860565088}
   - component: {fileID: 1860565087}
   - component: {fileID: 1860565093}
+  - component: {fileID: 1860565094}
+  - component: {fileID: 1860565095}
   m_Layer: 0
   m_Name: Plane
   m_TagString: Untagged
@@ -484,13 +486,43 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1860565086}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4f141f0deb2d6584e9e6f64314941787, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   trackedSimulation: {fileID: 1860565088}
   customFileName: Test
+--- !u!114 &1860565094
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1860565086}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ed3dafed82eb33a48a616bca03f11a8b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  record: 0
+  trackedSimulation: {fileID: 1860565088}
+  customFileName: example
+--- !u!114 &1860565095
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1860565086}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: baae8024e32c1614ab24031afaebf565, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  trackedSimulation: {fileID: 1860565088}
+  trackUpdates: 0
+  customFileName: example
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
